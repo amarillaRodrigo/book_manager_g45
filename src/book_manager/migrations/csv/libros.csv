@@ -1,0 +1,11 @@
+id,isbn,titulo,autor,genero_id,editorial_id,anio_publicacion
+1,978-0000000001,Libro de Prueba 1,Autor 1,1,1,2021
+2,978-0000000002,Libro de Prueba 2,Autor 2,2,2,2022
+3,978-0000000003,Libro de Prueba 3,Autor 3,3,3,2023
+4,978-0000000004,Libro de Prueba 4,Autor 4,4,4,2024
+5,978-0000000005,Libro de Prueba 5,Autor 5,5,5,2020
+6,978-0000000006,Libro de Prueba 6,Autor 6,6,6,2021
+7,978-0000000007,Libro de Prueba 7,Autor 7,7,7,2022
+8,978-0000000008,Libro de Prueba 8,Autor 8,8,8,2023
+9,978-0000000009,Libro de Prueba 9,Autor 9,9,9,2024
+10,978-00000000010,Libro de Prueba 10,Autor 10,10,10,2020

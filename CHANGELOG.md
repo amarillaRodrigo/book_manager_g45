@@ -4,6 +4,7 @@
 [Punto 07]
 - Creación del archivo de ejecución principal (main.py).
 - Integración de la capa de servicios con la interfaz gráfica.
+- Corrección de imports y referencias (`anio_publicacion`) en `console.py`, `preload_data.py` y `main.py` para asegurar ejecución limpia del CLI.
 
 [Punto 06]
 - Creación de la interfaz de usuario en consola CLI (book_manager/ui/console.py).
