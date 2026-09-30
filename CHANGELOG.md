@@ -1,6 +1,10 @@
 # CHANGELOG
 
 [Ejercicio 04]
+[Punto 07]
+- Creación del archivo de ejecución principal (main.py).
+- Integración de la capa de servicios con la interfaz gráfica.
+
 [Punto 06]
 - Creación de la interfaz de usuario en consola CLI (book_manager/ui/console.py).
 - Implementación de menú interactivo con operaciones CRUD completas para cada entidad.
