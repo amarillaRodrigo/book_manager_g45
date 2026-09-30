@@ -1,6 +1,10 @@
 # CHANGELOG
 
 [Ejercicio 04]
+[Punto 05]
+- Implementación del script de precarga de datos en preload_data.py.
+- Generación de 10 registros de prueba para cada entidad del sistema en migrations/csv.
+
 - Capa de servicios sobre los repositorios, con `ServicioBase[T]` para el CRUD común y validaciones por entidad.
 - Reglas de negocio: nombres, códigos e ISBN únicos; libros con género y editorial existentes; un precio por libro y moneda; venta mayor o igual a compra en las cotizaciones.
 - Integridad al eliminar: no se borran géneros, editoriales, monedas ni tipos de cotización en uso; al eliminar un libro se eliminan su stock y sus precios.
