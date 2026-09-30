@@ -1,11 +1,11 @@
 id,nombre,descripcion
-1,Ficción,
-2,No Ficción,
-3,Fantasía,
-4,Ciencia Ficción,
-5,Terror,
-6,Misterio,
-7,Romance,
-8,Historia,
-9,Biografía,
-10,Poesía,
+1,Novela / Ficción,Obras narrativas de ficción
+2,Terror / Cuentos,Narrativa de suspenso y elementos oscuros
+3,Ficción Contemporánea,Obras de autores contemporáneos
+4,Psicología / Autoayuda,Libros de bienestar y crecimiento personal
+5,Desarrollo Personal,Reflexiones y herramientas de superación
+6,Economía / Finanzas,Finanzas personales y manejo del dinero
+7,Psicología,Ensayos y análisis de la mente humana
+8,Fantasía / Romantasy,Novelas épicas y romance fantástico
+9,Historieta / Cómic,Novelas gráficas e historietas ilustradas
+10,Ensayo / Divulgación,Libros informativos y de divulgación

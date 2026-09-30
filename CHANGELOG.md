@@ -12,8 +12,7 @@
 - Implementación de menú interactivo con operaciones CRUD completas para cada entidad.
 
 [Punto 05]
-- Implementación del script de precarga de datos en preload_data.py.
-- Generación de 10 registros de prueba para cada entidad del sistema en migrations/csv.
+- Precarga de 10 libros y precios reales del catálogo de Cúspide (En agosto nos vemos, Un lugar soleado..., Alas de ónix, El Eternauta, etc.) en preload_data.py y archivos CSV.
 
 - Capa de servicios sobre los repositorios, con `ServicioBase[T]` para el CRUD común y validaciones por entidad.
 - Reglas de negocio: nombres, códigos e ISBN únicos; libros con género y editorial existentes; un precio por libro y moneda; venta mayor o igual a compra en las cotizaciones.
