@@ -28,7 +28,7 @@ T = TypeVar("T", bound=EntidadBase)
 
 # Carpeta donde viven los CSV de trabajo del sistema. Se puede reemplazar
 # pasando otra carpeta a cada repositorio (por ejemplo, en pruebas).
-DIRECTORIO_DATOS = Path(__file__).resolve().parent.parent / "data"
+DIRECTORIO_DATOS = Path(__file__).resolve().parent.parent / "migrations" / "csv"
 
 
 # ---------------------------------------------------------------------------

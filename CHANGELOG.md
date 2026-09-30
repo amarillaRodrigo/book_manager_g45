@@ -5,6 +5,7 @@
 - Creación del archivo de ejecución principal (main.py).
 - Integración de la capa de servicios con la interfaz gráfica.
 - Rediseño estético del menú de consola (ConsolaUI) con encabezados limpios e intuitivos.
+- Unificación del directorio de datos a `migrations/csv` y precarga automática de los 10 registros por entidad.
 
 [Punto 06]
 - Creación de la interfaz de usuario en consola CLI (book_manager/ui/console.py).
