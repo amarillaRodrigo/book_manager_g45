@@ -1,6 +1,10 @@
 # CHANGELOG
 
 [Ejercicio 04]
+[Punto 06]
+- Creación de la interfaz de usuario en consola CLI (book_manager/ui/console.py).
+- Implementación de menú interactivo con operaciones CRUD completas para cada entidad.
+
 [Punto 05]
 - Implementación del script de precarga de datos en preload_data.py.
 - Generación de 10 registros de prueba para cada entidad del sistema en migrations/csv.
