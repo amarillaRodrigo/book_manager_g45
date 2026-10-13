@@ -265,18 +265,36 @@ class Libro(EntidadBase):
         isbn: str,
         titulo: str,
         autor: str,
-        genero_id: int,
-        editorial_id: int,
+        genero: Optional[Genero] = None,
+        editorial: Optional[Editorial] = None,
         anio_publicacion: int = 2024,
         id: Optional[int] = None,
+        genero_id: Optional[int] = None,
+        editorial_id: Optional[int] = None,
     ) -> None:
         super().__init__(id)
         self.isbn = isbn
         self.titulo = titulo
         self.autor = autor
-        self.genero_id = genero_id
-        self.editorial_id = editorial_id
         self.anio_publicacion = anio_publicacion
+        self._genero: Optional[Genero] = None
+        self._genero_id: Optional[int] = None
+        self._editorial: Optional[Editorial] = None
+        self._editorial_id: Optional[int] = None
+
+        if isinstance(genero, Genero):
+            self.genero = genero
+        elif genero_id is not None:
+            self.genero_id = genero_id
+        elif isinstance(genero, int):
+            self.genero_id = genero
+
+        if isinstance(editorial, Editorial):
+            self.editorial = editorial
+        elif editorial_id is not None:
+            self.editorial_id = editorial_id
+        elif isinstance(editorial, int):
+            self.editorial_id = editorial
 
     @property
     def isbn(self) -> str:
@@ -309,8 +327,23 @@ class Libro(EntidadBase):
         self._autor = value.strip()
 
     @property
+    def genero(self) -> Optional[Genero]:
+        """Objeto Genero asociado al libro."""
+        return self._genero
+
+    @genero.setter
+    def genero(self, value: Optional[Genero]) -> None:
+        if value is not None and not isinstance(value, Genero):
+            raise TypeError("genero debe ser una instancia de Genero.")
+        self._genero = value
+        if value is not None and value.id is not None:
+            self._genero_id = value.id
+
+    @property
     def genero_id(self) -> int:
-        return self._genero_id
+        if self._genero is not None and self._genero.id is not None:
+            return self._genero.id
+        return self._genero_id if self._genero_id is not None else 1
 
     @genero_id.setter
     def genero_id(self, value: int) -> None:
@@ -319,8 +352,23 @@ class Libro(EntidadBase):
         self._genero_id = value
 
     @property
+    def editorial(self) -> Optional[Editorial]:
+        """Objeto Editorial asociado al libro."""
+        return self._editorial
+
+    @editorial.setter
+    def editorial(self, value: Optional[Editorial]) -> None:
+        if value is not None and not isinstance(value, Editorial):
+            raise TypeError("editorial debe ser una instancia de Editorial.")
+        self._editorial = value
+        if value is not None and value.id is not None:
+            self._editorial_id = value.id
+
+    @property
     def editorial_id(self) -> int:
-        return self._editorial_id
+        if self._editorial is not None and self._editorial.id is not None:
+            return self._editorial.id
+        return self._editorial_id if self._editorial_id is not None else 1
 
     @editorial_id.setter
     def editorial_id(self, value: int) -> None:
@@ -371,16 +419,53 @@ class Precio(EntidadBase):
     """Representa el valor monetario asociado a un libro en una moneda determinada."""
 
     def __init__(
-        self, libro_id: int, monto: float, moneda_id: int, id: Optional[int] = None
+        self,
+        libro: Optional[Libro] = None,
+        monto: float = 0.0,
+        moneda: Optional[Moneda] = None,
+        id: Optional[int] = None,
+        libro_id: Optional[int] = None,
+        moneda_id: Optional[int] = None,
     ) -> None:
         super().__init__(id)
-        self.libro_id = libro_id
         self.monto = monto
-        self.moneda_id = moneda_id
+        self._libro: Optional[Libro] = None
+        self._libro_id: Optional[int] = None
+        self._moneda: Optional[Moneda] = None
+        self._moneda_id: Optional[int] = None
+
+        if isinstance(libro, Libro):
+            self.libro = libro
+        elif libro_id is not None:
+            self.libro_id = libro_id
+        elif isinstance(libro, int):
+            self.libro_id = libro
+
+        if isinstance(moneda, Moneda):
+            self.moneda = moneda
+        elif moneda_id is not None:
+            self.moneda_id = moneda_id
+        elif isinstance(moneda, int):
+            self.moneda_id = moneda
+
+    @property
+    def libro(self) -> Optional[Libro]:
+        """Objeto Libro asociado al precio."""
+        return self._libro
+
+    @libro.setter
+    def libro(self, value: Optional[Libro]) -> None:
+        if value is not None and not isinstance(value, Libro):
+            raise TypeError("libro debe ser una instancia de Libro.")
+        self._libro = value
+        if value is not None and value.id is not None:
+            self._libro_id = value.id
 
     @property
     def libro_id(self) -> int:
-        return self._libro_id
+        if self._libro is not None and self._libro.id is not None:
+            return self._libro.id
+        return self._libro_id if self._libro_id is not None else 1
 
     @libro_id.setter
     def libro_id(self, value: int) -> None:
@@ -399,8 +484,23 @@ class Precio(EntidadBase):
         self._monto = float(value)
 
     @property
+    def moneda(self) -> Optional[Moneda]:
+        """Objeto Moneda asociado al precio."""
+        return self._moneda
+
+    @moneda.setter
+    def moneda(self, value: Optional[Moneda]) -> None:
+        if value is not None and not isinstance(value, Moneda):
+            raise TypeError("moneda debe ser una instancia de Moneda.")
+        self._moneda = value
+        if value is not None and value.id is not None:
+            self._moneda_id = value.id
+
+    @property
     def moneda_id(self) -> int:
-        return self._moneda_id
+        if self._moneda is not None and self._moneda.id is not None:
+            return self._moneda.id
+        return self._moneda_id if self._moneda_id is not None else 1
 
     @moneda_id.setter
     def moneda_id(self, value: int) -> None:
@@ -435,16 +535,42 @@ class Stock(EntidadBase):
     """Representa la cantidad disponible de cada libro."""
 
     def __init__(
-        self, libro_id: int, cantidad: int, ubicacion: str = "Depósito", id: Optional[int] = None
+        self,
+        libro: Optional[Libro] = None,
+        cantidad: int = 0,
+        ubicacion: str = "Depósito",
+        id: Optional[int] = None,
+        libro_id: Optional[int] = None,
     ) -> None:
         super().__init__(id)
-        self.libro_id = libro_id
         self.cantidad = cantidad
         self._ubicacion = ubicacion
+        self._libro: Optional[Libro] = None
+        self._libro_id: Optional[int] = None
+
+        if isinstance(libro, Libro):
+            self.libro = libro
+        elif libro_id is not None:
+            self.libro_id = libro_id
+        elif isinstance(libro, int):
+            self.libro_id = libro
+
+    @property
+    def libro(self) -> Optional[Libro]:
+        """Objeto Libro asociado al stock."""
+        return self._libro
+
+    @libro.setter
+    def libro(self, value: Optional[Libro]) -> None:
+        if value is not None and not isinstance(value, Libro):
+            raise TypeError("libro debe ser una instancia de Libro.")
+        self._libro = value
+        if value is not None and value.id is not None:
+            self._libro_id = value.id
 
     @property
     def libro_id(self) -> int:
-        return self._libro_id
+        return self._libro_id if self._libro_id is not None else (self._libro.id if self._libro else 1)
 
     @libro_id.setter
     def libro_id(self, value: int) -> None:
@@ -498,21 +624,45 @@ class CotizacionDolar(EntidadBase):
 
     def __init__(
         self,
-        tipo_id: int,
-        fecha: datetime.date,
-        valor_compra: float,
-        valor_venta: float,
+        tipo_cotizacion: Optional[TipoCotizacion] = None,
+        fecha: Optional[datetime.date] = None,
+        valor_compra: float = 0.0,
+        valor_venta: float = 0.0,
         id: Optional[int] = None,
+        tipo_id: Optional[int] = None,
     ) -> None:
         super().__init__(id)
-        self.tipo_id = tipo_id
-        self.fecha = fecha
+        self.fecha = fecha if fecha is not None else datetime.date.today()
         self.valor_compra = valor_compra
         self.valor_venta = valor_venta
+        self._tipo_cotizacion: Optional[TipoCotizacion] = None
+        self._tipo_id: Optional[int] = None
+
+        if isinstance(tipo_cotizacion, TipoCotizacion):
+            self.tipo_cotizacion = tipo_cotizacion
+        elif tipo_id is not None:
+            self.tipo_id = tipo_id
+        elif isinstance(tipo_cotizacion, int):
+            self.tipo_id = tipo_cotizacion
+
+    @property
+    def tipo_cotizacion(self) -> Optional[TipoCotizacion]:
+        """Objeto TipoCotizacion asociado."""
+        return self._tipo_cotizacion
+
+    @tipo_cotizacion.setter
+    def tipo_cotizacion(self, value: Optional[TipoCotizacion]) -> None:
+        if value is not None and not isinstance(value, TipoCotizacion):
+            raise TypeError("tipo_cotizacion debe ser una instancia de TipoCotizacion.")
+        self._tipo_cotizacion = value
+        if value is not None and value.id is not None:
+            self._tipo_id = value.id
 
     @property
     def tipo_id(self) -> int:
-        return self._tipo_id
+        if self._tipo_cotizacion is not None and self._tipo_cotizacion.id is not None:
+            return self._tipo_cotizacion.id
+        return self._tipo_id if self._tipo_id is not None else 1
 
     @tipo_id.setter
     def tipo_id(self, value: int) -> None:

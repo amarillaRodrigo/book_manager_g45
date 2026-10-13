@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.db
+*.sqlite3
+.kilo/
+.pytest_cache/
+.vscode/
+src/book_manager/data/

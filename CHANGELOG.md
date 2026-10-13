@@ -1,19 +1,35 @@
 # CHANGELOG
 
-[Ejercicio 04]
-[Punto 07]
+## Sprint 2
+
+[Ejercicio 01]
+- Inicialización y configuración de la rama de trabajo `Sprint_2` a partir de `Sprint_1`.
+- Creación de la estructura de paquetes para Sprint 2: `database/` (conexión y sesiones), `models/` (modelos ORM), `migrations/sql/` y `migrations/migrations.py`.
+- Creación del archivo `.env` con variables de entorno (`API_URL` para la API del dólar y `DATABASE_URL` para la base de datos).
+- Actualización de `requirements.txt` incorporando las librerías `sqlalchemy`, `python-dotenv` y `requests`.
+- Actualización del archivo `README.md` documentando los objetivos, contexto y arquitectura del Sprint 2.
+- Resolución de observaciones de POO en entidades de dominio: vinculación directa de objetos asociados (`genero`, `editorial`, `libro`, `moneda`, `tipo_cotizacion`) en `Libro`, `Precio`, `Stock` y `CotizacionDolar`.
+- Actualización de `preload_data.py` para leer los datos iniciales directamente desde los archivos CSV en `migrations/csv/`.
+- Refactorización de `main.py` con inyección explícita de dependencias hacia los servicios sin enmascarar excepciones.
+
+---
+
+## Sprint 1
+
+[Ejercicio 07]
 - Creación del archivo de ejecución principal (main.py).
 - Integración de la capa de servicios con la interfaz gráfica.
 - Rediseño estético del menú de consola (ConsolaUI) con encabezados limpios e intuitivos.
 - Unificación del directorio de datos a `migrations/csv` y precarga automática de los 10 registros por entidad.
 
-[Punto 06]
+[Ejercicio 06]
 - Creación de la interfaz de usuario en consola CLI (book_manager/ui/console.py).
 - Implementación de menú interactivo con operaciones CRUD completas para cada entidad.
 
-[Punto 05]
+[Ejercicio 05]
 - Precarga de 10 libros y precios reales del catálogo de Cúspide (En agosto nos vemos, Un lugar soleado..., Alas de ónix, El Eternauta, etc.) en preload_data.py y archivos CSV.
 
+[Ejercicio 04]
 - Capa de servicios sobre los repositorios, con `ServicioBase[T]` para el CRUD común y validaciones por entidad.
 - Reglas de negocio: nombres, códigos e ISBN únicos; libros con género y editorial existentes; un precio por libro y moneda; venta mayor o igual a compra en las cotizaciones.
 - Integridad al eliminar: no se borran géneros, editoriales, monedas ni tipos de cotización en uso; al eliminar un libro se eliminan su stock y sus precios.

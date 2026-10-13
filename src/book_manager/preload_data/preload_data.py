@@ -1,5 +1,6 @@
-"""Módulo para la precarga e importación de datos por defecto tomando como referencia el catálogo de Cúspide."""
+"""Módulo para la precarga e importación de datos leyendo los archivos CSV de migrations/csv."""
 
+import csv
 import datetime
 from pathlib import Path
 
@@ -42,7 +43,7 @@ def precargar_datos_iniciales(servicios: Servicios) -> None:
         if t_oficial.id is not None:
             servicios.cotizaciones.registrar(
                 CotizacionDolar(
-                    tipo_id=t_oficial.id,
+                    tipo_cotizacion=t_oficial,
                     fecha=datetime.date.today(),
                     valor_compra=980.0,
                     valor_venta=1020.0,
@@ -56,7 +57,7 @@ def precargar_datos_iniciales(servicios: Servicios) -> None:
         if t_blue.id is not None:
             servicios.cotizaciones.registrar(
                 CotizacionDolar(
-                    tipo_id=t_blue.id,
+                    tipo_cotizacion=t_blue,
                     fecha=datetime.date.today(),
                     valor_compra=1200.0,
                     valor_venta=1230.0,
@@ -64,9 +65,18 @@ def precargar_datos_iniciales(servicios: Servicios) -> None:
             )
 
 
-def ejecutar_precarga() -> None:
-    """Ejecuta la precarga de 10 libros del catálogo oficial de Cúspide en archivos CSV."""
-    csv_dir = Path(__file__).resolve().parent.parent / "migrations" / "csv"
+def ejecutar_precarga(carpeta_csvs: Path | str | None = None) -> None:
+    """Ejecuta la precarga de datos leyendo directamente los archivos CSV de migrations/csv.
+
+    Lee cada archivo CSV oficial (generos, editoriales, monedas, tipos_cotizacion,
+    libros, precios, stock y cotizaciones) y puebla los repositorios asegurando
+    que los datos provengan de los archivos persistidos y no de valores hardcodeados en código.
+    """
+    if carpeta_csvs is None:
+        csv_dir = Path(__file__).resolve().parent.parent / "migrations" / "csv"
+    else:
+        csv_dir = Path(carpeta_csvs)
+
     csv_dir.mkdir(parents=True, exist_ok=True)
 
     repo_genero = RepositorioGenero(csv_dir)
@@ -78,148 +88,87 @@ def ejecutar_precarga() -> None:
     repo_stock = RepositorioStock(csv_dir)
     repo_cot_dolar = RepositorioCotizacionDolar(csv_dir)
 
-    # 1. Géneros Cúspide (10 registros)
-    generos_data = [
-        ("Novela / Ficción", "Obras narrativas de ficción"),
-        ("Terror / Cuentos", "Narrativa de suspenso y elementos oscuros"),
-        ("Ficción Contemporánea", "Obras de autores contemporáneos"),
-        ("Psicología / Autoayuda", "Libros de bienestar y crecimiento personal"),
-        ("Desarrollo Personal", "Reflexiones y herramientas de superación"),
-        ("Economía / Finanzas", "Finanzas personales y manejo del dinero"),
-        ("Psicología", "Ensayos y análisis de la mente humana"),
-        ("Fantasía / Romantasy", "Novelas épicas y romance fantástico"),
-        ("Historieta / Cómic", "Novelas gráficas e historietas ilustradas"),
-        ("Ensayo / Divulgación", "Libros informativos y de divulgación"),
-    ]
-    if not repo_genero.leer_todos():
-        for g_nom, g_desc in generos_data:
-            repo_genero.crear(Genero(nombre=g_nom, descripcion=g_desc))
+    # 1. Cargar Géneros desde CSV
+    generos_csv = csv_dir / "generos.csv"
+    if generos_csv.exists() and not repo_genero.leer_todos():
+        with open(generos_csv, mode="r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                repo_genero.crear(Genero.from_dict(row))
 
-    # 2. Editoriales Cúspide (10 registros)
-    editoriales_data = [
-        ("Random House", "contacto@penguinrandomhouse.com", "Buenos Aires, Argentina"),
-        ("Anagrama", "info@anagrama-ed.es", "Barcelona, España"),
-        ("Plaza & Janés", "contacto@plazayjanes.com", "Barcelona, España"),
-        ("Gaia Ediciones", "info@alfaomega.es", "Madrid, España"),
-        ("Sudamericana", "contacto@sudamericana.com.ar", "Buenos Aires, Argentina"),
-        ("Planeta", "contacto@editorialplaneta.com.ar", "Buenos Aires, Argentina"),
-        ("Debolsillo", "info@debolsillo.com", "Buenos Aires, Argentina"),
-        ("Minotauro", "consultas@editorialminotauro.com", "Barcelona, España"),
-        ("VR Editoras", "contacto@vreditoras.com", "Buenos Aires, Argentina"),
-        ("Siglo XXI", "info@sigloxxieditores.com.ar", "Buenos Aires, Argentina"),
-    ]
-    if not repo_editorial.leer_todos():
-        for ed_nom, ed_cont, ed_dir in editoriales_data:
-            repo_editorial.crear(Editorial(nombre=ed_nom, contacto=ed_cont, direccion=ed_dir))
+    # 2. Cargar Editoriales desde CSV
+    editoriales_csv = csv_dir / "editoriales.csv"
+    if editoriales_csv.exists() and not repo_editorial.leer_todos():
+        with open(editoriales_csv, mode="r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                repo_editorial.crear(Editorial.from_dict(row))
 
-    # 3. Monedas (10 registros)
-    monedas_data = [
-        ("ARS", "Peso Argentino", "$"),
-        ("USD", "Dólar Estadounidense", "U$S"),
-        ("EUR", "Euro", "€"),
-        ("BRL", "Real Brasileño", "R$"),
-        ("GBP", "Libra Esterlina", "£"),
-        ("CLP", "Peso Chileno", "$"),
-        ("UYU", "Peso Uruguayo", "$U"),
-        ("PYG", "Guaraní Paraguayo", "Gs"),
-        ("BOB", "Boliviano", "Bs"),
-        ("MXN", "Peso Mexicano", "$"),
-    ]
-    if not repo_moneda.leer_todos():
-        for m_cod, m_nom, m_simb in monedas_data:
-            repo_moneda.crear(Moneda(codigo=m_cod, nombre=m_nom, simbolo=m_simb))
+    # 3. Cargar Monedas desde CSV
+    monedas_csv = csv_dir / "monedas.csv"
+    if monedas_csv.exists() and not repo_moneda.leer_todos():
+        with open(monedas_csv, mode="r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                repo_moneda.crear(Moneda.from_dict(row))
 
-    # 4. Tipos de Cotización (10 registros)
-    tipos_data = [
-        ("Oficial", "Cotización oficial Banco Nación"),
-        ("Blue", "Cotización del dólar libre"),
-        ("MEP", "Mercado Electrónico de Pagos"),
-        ("CCL", "Contado con Liquidación"),
-        ("Tarjeta", "Dólar turista / tarjeta"),
-        ("Mayorista", "Dólar bancario mayorista"),
-        ("Minorista", "Dólar bancario minorista"),
-        ("Cripto", "Cotización USDT/USDC"),
-        ("Turista", "Dólar para consumo en el exterior"),
-        ("Solidario", "Dólar ahorro con recargos"),
-    ]
-    if not repo_tipo_cot.leer_todos():
-        for t_nom, t_desc in tipos_data:
-            repo_tipo_cot.crear(TipoCotizacion(nombre=t_nom, descripcion=t_desc))
+    # 4. Cargar Tipos de Cotización desde CSV
+    tipos_csv = csv_dir / "tipos_cotizacion.csv"
+    if tipos_csv.exists() and not repo_tipo_cot.leer_todos():
+        with open(tipos_csv, mode="r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                repo_tipo_cot.crear(TipoCotizacion.from_dict(row))
 
-    # 5. Libros reales tomados del catálogo de Cúspide (10 registros)
-    libros_cuspide = [
-        ("978-8420479705", "En agosto nos vemos", "García Márquez, Gabriel", 1, 1, 2024),
-        ("978-8433921864", "Un lugar soleado para gente sombría", "Enríquez, Mariana", 2, 2, 2024),
-        ("978-8433922656", "El buen mal", "Schweblin, Samanta", 3, 2, 2024),
-        ("978-8417854614", "Antes de que se enfríe el café", "Kawaguchi, Toshikazu", 3, 3, 2021),
-        ("978-8416429943", "Este dolor no es mío", "Wolynn, Mark", 4, 4, 2017),
-        ("978-9877389654", "Espíritu Animal", "Tajes, Magalí", 5, 5, 2024),
-        ("978-9500768436", "Fluí con el dinero", "Starobinsky, Ezequiel", 6, 5, 2023),
-        ("978-9504971849", "El duelo", "Rolón, Gabriel", 7, 6, 2020),
-        ("978-8419654854", "Alas de ónix", "Yarros, Rebecca", 8, 6, 2024),
-        ("978-9878191232", "El Eternauta", "Oesterheld, Héctor Germán", 9, 6, 2022),
-    ]
-    if not repo_libro.leer_todos():
-        for isbn, tit, aut, gen_id, ed_id, anio in libros_cuspide:
-            repo_libro.crear(
-                Libro(
-                    isbn=isbn,
-                    titulo=tit,
-                    autor=aut,
-                    genero_id=gen_id,
-                    editorial_id=ed_id,
-                    anio_publicacion=anio,
-                )
-            )
+    # 5. Cargar Libros desde CSV vinculando objetos Genero y Editorial
+    libros_csv = csv_dir / "libros.csv"
+    if libros_csv.exists() and not repo_libro.leer_todos():
+        with open(libros_csv, mode="r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                libro = Libro.from_dict(row)
+                if libro.genero_id:
+                    libro.genero = repo_genero.leer_por_id(libro.genero_id)
+                if libro.editorial_id:
+                    libro.editorial = repo_editorial.leer_por_id(libro.editorial_id)
+                repo_libro.crear(libro)
 
-    # 6. Precios exactos en ARS según Cúspide (10 registros)
-    precios_cuspide = [
-        (1, 1, 36499.0),
-        (2, 1, 40900.0),
-        (3, 1, 35499.0),
-        (4, 1, 41999.0),
-        (5, 1, 47500.0),
-        (6, 1, 38499.0),
-        (7, 1, 41999.0),
-        (8, 1, 30900.0),
-        (9, 1, 61900.0),
-        (10, 1, 47900.0),
-    ]
-    if not repo_precio.leer_todos():
-        for lib_id, mon_id, monto in precios_cuspide:
-            repo_precio.crear(Precio(libro_id=lib_id, moneda_id=mon_id, monto=monto))
+    # 6. Cargar Precios desde CSV vinculando Libro y Moneda
+    precios_csv = csv_dir / "precios.csv"
+    if precios_csv.exists() and not repo_precio.leer_todos():
+        with open(precios_csv, mode="r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                precio = Precio.from_dict(row)
+                if precio.libro_id:
+                    precio.libro = repo_libro.leer_por_id(precio.libro_id)
+                if precio.moneda_id:
+                    precio.moneda = repo_moneda.leer_por_id(precio.moneda_id)
+                repo_precio.crear(precio)
 
-    # 7. Stock inicial Cúspide (10 registros)
-    stock_cuspide = [
-        (1, 20),
-        (2, 15),
-        (3, 18),
-        (4, 25),
-        (5, 12),
-        (6, 30),
-        (7, 10),
-        (8, 40),
-        (9, 8),
-        (10, 22),
-    ]
-    if not repo_stock.leer_todos():
-        for lib_id, cant in stock_cuspide:
-            repo_stock.crear(Stock(libro_id=lib_id, cantidad=cant))
+    # 7. Cargar Stock desde CSV vinculando Libro
+    stock_csv = csv_dir / "stock.csv"
+    if stock_csv.exists() and not repo_stock.leer_todos():
+        with open(stock_csv, mode="r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                stk = Stock.from_dict(row)
+                if stk.libro_id:
+                    stk.libro = repo_libro.leer_por_id(stk.libro_id)
+                repo_stock.crear(stk)
 
-    # 8. Cotización Dólar (10 registros históricos)
-    if not repo_cot_dolar.leer_todos():
-        hoy = datetime.date.today()
-        for i in range(1, 11):
-            repo_cot_dolar.crear(
-                CotizacionDolar(
-                    tipo_id=2,  # Blue
-                    fecha=hoy - datetime.timedelta(days=i),
-                    valor_compra=1200.0 + (i * 2),
-                    valor_venta=1225.0 + (i * 2),
-                )
-            )
+    # 8. Cargar Cotizaciones desde CSV vinculando TipoCotizacion
+    cotizaciones_csv = csv_dir / "cotizaciones.csv"
+    if cotizaciones_csv.exists() and not repo_cot_dolar.leer_todos():
+        with open(cotizaciones_csv, mode="r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                cot = CotizacionDolar.from_dict(row)
+                if cot.tipo_id:
+                    cot.tipo_cotizacion = repo_tipo_cot.leer_por_id(cot.tipo_id)
+                repo_cot_dolar.crear(cot)
 
-    print("Datos oficiales de Cúspide precargados exitosamente en migrations/csv.")
+    print("Precarga completada leyendo los archivos CSV de migrations/csv.")
 
 
 if __name__ == "__main__":
