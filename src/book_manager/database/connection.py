@@ -1,8 +1,9 @@
 """Módulo de conexión y sesiones para la base de datos con SQLAlchemy."""
 
 import os
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Iterator, Optional
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
@@ -82,6 +83,28 @@ class ConexionDB:
         """Crea y retorna una nueva sesión de base de datos."""
         return self.session_factory()
 
+    @contextmanager
+    def transaccion(self) -> Iterator[Session]:
+        """Context manager para ejecutar operaciones dentro de una transacción.
+
+        Abre una nueva sesión y la expone al bloque `with`. Si el bloque
+        finaliza sin errores, confirma los cambios (`commit`); si ocurre una
+        excepción, revierte los cambios (`rollback`) y relanza la excepción
+        original. La sesión se cierra siempre al finalizar, haya o no error.
+
+        Yields:
+            Session: sesión de SQLAlchemy activa durante la transacción.
+        """
+        sesion = self.obtener_sesion()
+        try:
+            yield sesion
+            sesion.commit()
+        except Exception:
+            sesion.rollback()
+            raise
+        finally:
+            sesion.close()
+
     def crear_tablas(self, base: object) -> None:
         """Crea todas las tablas registradas en el metadata del Base declarativo.
 
@@ -112,3 +135,13 @@ def obtener_conexion(url: Optional[str] = None, echo: bool = False) -> ConexionD
     if _conexion_global is None or (url is not None and url != _conexion_global.url):
         _conexion_global = ConexionDB(url=url, echo=echo)
     return _conexion_global
+
+
+@contextmanager
+def transaccion(url: Optional[str] = None, echo: bool = False) -> Iterator[Session]:
+    """Atajo para ejecutar una transacción sobre la conexión global compartida.
+
+    Equivale a `obtener_conexion(url, echo).transaccion()`.
+    """
+    with obtener_conexion(url=url, echo=echo).transaccion() as sesion:
+        yield sesion

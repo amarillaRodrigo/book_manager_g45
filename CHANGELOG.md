@@ -2,6 +2,10 @@
 
 ## Sprint 2
 
+[Ejercicio 03]
+- Context manager `transaccion` en la clase `ConexionDB` (`book_manager/database/connection.py`): abre una sesión, confirma los cambios si no hay errores y los revierte relanzando la excepción original en caso contrario, cerrando siempre la sesión.
+- Función utilitaria `transaccion()` a nivel de módulo como atajo sobre la conexión global compartida, en línea con `obtener_conexion`.
+
 [Ejercicio 02]
 - Implementación de la clase `ConexionDB` en `book_manager/database/connection.py` para la gestión centralizada de la base de datos con SQLAlchemy.
 - Configuración del motor relacional (`Engine`) y fábrica de sesiones (`sessionmaker`) con URL configurable vía parámetro o `.env` (SQLite por defecto).
