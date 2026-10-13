@@ -2,6 +2,12 @@
 
 ## Sprint 2
 
+[Ejercicio 02]
+- Implementación de la clase `ConexionDB` en `book_manager/database/connection.py` para la gestión centralizada de la base de datos con SQLAlchemy.
+- Configuración del motor relacional (`Engine`) y fábrica de sesiones (`sessionmaker`) con URL configurable vía parámetro o `.env` (SQLite por defecto).
+- Métodos auxiliares para obtención de sesiones (`obtener_sesion`), creación de tablas (`crear_tablas`) y cierre del pool (`desconectar`).
+- Función utilitaria `obtener_conexion` para reutilización segura de la conexión.
+
 [Ejercicio 01]
 - Inicialización y configuración de la rama de trabajo `Sprint_2` a partir de `Sprint_1`.
 - Creación de la estructura de paquetes para Sprint 2: `database/` (conexión y sesiones), `models/` (modelos ORM), `migrations/sql/` y `migrations/migrations.py`.
