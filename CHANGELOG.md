@@ -2,6 +2,12 @@
 
 ## Sprint 2
 
+[Ejercicio 04]
+- Modelos ORM declarativos de SQLAlchemy 2.x en `book_manager/models/models.py`: clase `Base(DeclarativeBase)` y una tabla por entidad de dominio (`Genero`, `Editorial`, `Moneda`, `TipoCotizacion`, `Libro`, `Precio`, `Stock`, `CotizacionDolar`).
+- Tipos de columna según el dominio (`String` con longitud, `Numeric` para montos y cotizaciones, fechas, enteros) y restricciones `NOT NULL`/`UNIQUE` reflejando las reglas de unicidad de nombre, código e ISBN ya validadas en los servicios.
+- Claves foráneas y `relationship()` bidireccionales entre `Libro`↔`Genero`/`Editorial`, `Precio`↔`Libro`/`Moneda`, `Stock`↔`Libro` y `CotizacionDolar`↔`TipoCotizacion`, con restricciones de unicidad compuesta (`libro_id`+`moneda_id`, `tipo_id`+`fecha`).
+- Eliminación en cascada de `Precio` y `Stock` al eliminar un `Libro`, consistente con el comportamiento de `ServicioLibro.eliminar`.
+
 [Ejercicio 03]
 - Context manager `transaccion` en la clase `ConexionDB` (`book_manager/database/connection.py`): abre una sesión, confirma los cambios si no hay errores y los revierte relanzando la excepción original en caso contrario, cerrando siempre la sesión.
 - Función utilitaria `transaccion()` a nivel de módulo como atajo sobre la conexión global compartida, en línea con `obtener_conexion`.
