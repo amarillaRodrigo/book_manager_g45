@@ -3,14 +3,19 @@
 Los servicios aplican las reglas de negocio sobre los repositorios: validan
 referencias entre entidades, evitan duplicados, protegen las eliminaciones
 que dejarían datos huérfanos y resuelven operaciones propias del dominio
-(movimientos de stock y conversión de precios según la cotización del dólar).
+(movimientos de stock, conversión de precios y consulta de cotizaciones a API externa).
 """
 
 import datetime
+import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Generic, List, Optional, TypeVar
+from typing import Any, Dict, Generic, List, Optional, TypeVar
 
+import requests
+from dotenv import load_dotenv
+
+from book_manager.database.connection import ConexionDB, obtener_conexion
 from book_manager.entities.entities import (
     CotizacionDolar,
     Editorial,
@@ -37,10 +42,31 @@ from book_manager.repositories.repositories import (
     RepositorioTipoCotizacion,
 )
 
+# Cargar variables de entorno desde el archivo .env en la raíz del proyecto
+_env_path = Path(__file__).resolve().parent.parent.parent.parent / ".env"
+if _env_path.exists():
+    load_dotenv(dotenv_path=_env_path)
+else:
+    load_dotenv()
+
 T = TypeVar("T", bound=EntidadBase)
 
 CODIGO_PESOS = "ARS"
 CODIGO_DOLARES = "USD"
+DEFAULT_API_URL = "https://dolarapi.com/v1/dolares"
+
+# Mapeo entre los identificadores de dolarapi.com y los nombres de TipoCotizacion del sistema
+MAPEO_TIPOS_API: Dict[str, str] = {
+    "oficial": "Oficial",
+    "blue": "Blue",
+    "bolsa": "MEP",
+    "mep": "MEP",
+    "contadoconliqui": "CCL",
+    "ccl": "CCL",
+    "mayorista": "Mayorista",
+    "cripto": "Cripto",
+    "tarjeta": "Tarjeta",
+}
 
 
 class EntidadNoEncontradaError(ValueError):
@@ -206,7 +232,7 @@ class ServicioTipoCotizacion(ServicioBase[TipoCotizacion]):
 
 
 # ---------------------------------------------------------------------------
-# Libros, precios y stock
+# Libros, precios, stock y cotizaciones del dólar
 # ---------------------------------------------------------------------------
 
 
@@ -247,17 +273,15 @@ class ServicioLibro(ServicioBase[Libro]):
             )
 
     def eliminar(self, id: int) -> bool:
-        if not super().eliminar(id):
-            return False
         for precio in self._precios.leer_todos():
             if precio.libro_id == id and precio.id is not None:
                 self._precios.eliminar(precio.id)
         self._stock.eliminar(id)
-        return True
+        return super().eliminar(id)
 
 
-class ServicioCotizacion:
-    """Cotizaciones del dólar por tipo y fecha, y conversión entre pesos y dólares.
+class ServicioCotizacionDolar:
+    """Cotizaciones del dólar por tipo y fecha, descarga desde API y conversión monetaria.
 
     Para convertir se usa el valor de venta de la cotización, que es el que la
     librería aplica al fijar sus precios.
@@ -267,9 +291,11 @@ class ServicioCotizacion:
         self,
         repositorio: IRepositorioCotizacionDolar,
         tipos: IRepositorio[TipoCotizacion],
+        api_url: Optional[str] = None,
     ) -> None:
         self._repositorio = repositorio
         self._tipos = tipos
+        self._api_url = api_url or os.getenv("API_URL") or DEFAULT_API_URL
 
     def registrar(self, cotizacion: CotizacionDolar) -> CotizacionDolar:
         """Da de alta una cotización validando el tipo y los valores."""
@@ -317,6 +343,104 @@ class ServicioCotizacion:
         """Convierte un monto en pesos a dólares."""
         return round(monto / self.vigente(tipo_id, fecha).valor_venta, 2)
 
+    def obtener_cotizaciones(self, url: Optional[str] = None) -> List[CotizacionDolar]:
+        """Busca, descarga y registra las cotizaciones del dólar desde la API externa.
+
+        Args:
+            url (Optional[str]): URL de la API a consultar. Si no se indica, se
+                utiliza la variable de entorno ``API_URL`` configurada en ``.env``.
+
+        Returns:
+            List[CotizacionDolar]: Lista de cotizaciones registradas o actualizadas
+                en la base de datos.
+
+        Raises:
+            ReglaDeNegocioError: Si ocurre un error de red o formato al consultar la API.
+        """
+        endpoint = url or os.getenv("API_URL") or self._api_url
+        try:
+            respuesta = requests.get(endpoint, timeout=10)
+            respuesta.raise_for_status()
+            datos = respuesta.json()
+        except Exception as exc:
+            raise ReglaDeNegocioError(
+                f"Error al obtener las cotizaciones desde la API ({endpoint}): {exc}"
+            ) from exc
+
+        if not isinstance(datos, list):
+            raise ReglaDeNegocioError("Formato de respuesta inválido recibido desde la API.")
+
+        registradas: List[CotizacionDolar] = []
+        tipos_actuales = {t.nombre.casefold(): t for t in self._tipos.leer_todos()}
+
+        for item in datos:
+            if not isinstance(item, dict):
+                continue
+
+            compra_raw = item.get("compra")
+            venta_raw = item.get("venta")
+            if compra_raw is None or venta_raw is None:
+                continue
+
+            valor_compra = float(compra_raw)
+            valor_venta = float(venta_raw)
+            if valor_venta < valor_compra:
+                valor_compra = valor_venta
+
+            casa = str(item.get("casa") or "").strip().lower()
+            nombre_api = str(item.get("nombre") or casa).strip()
+            nombre_tipo = MAPEO_TIPOS_API.get(casa) or MAPEO_TIPOS_API.get(
+                nombre_api.lower(), nombre_api.capitalize()
+            )
+            if not nombre_tipo:
+                continue
+
+            tipo = tipos_actuales.get(nombre_tipo.casefold())
+            if tipo is None:
+                tipo = self._tipos.crear(
+                    TipoCotizacion(
+                        nombre=nombre_tipo,
+                        descripcion=f"Dólar {nombre_api or nombre_tipo} (API)",
+                    )
+                )
+                tipos_actuales[nombre_tipo.casefold()] = tipo
+
+            if tipo.id is None:
+                continue
+
+            fecha = self._extraer_fecha(item.get("fechaActualizacion"))
+            cotizacion = CotizacionDolar(
+                tipo_id=tipo.id,
+                fecha=fecha,
+                valor_compra=valor_compra,
+                valor_venta=valor_venta,
+            )
+
+            existente = self._repositorio.leer_por_tipo_y_fecha(tipo.id, fecha)
+            if existente is not None:
+                guardada = self.actualizar(cotizacion)
+            else:
+                guardada = self.registrar(cotizacion)
+            registradas.append(guardada)
+
+        return registradas
+
+    @staticmethod
+    def _extraer_fecha(fecha_raw: Any) -> datetime.date:
+        """Extrae la fecha desde una cadena ISO 8601 devuelta por la API o retorna hoy."""
+        if isinstance(fecha_raw, str) and fecha_raw.strip():
+            texto = fecha_raw.strip()
+            try:
+                return datetime.date.fromisoformat(texto[:10])
+            except ValueError:
+                try:
+                    return datetime.datetime.fromisoformat(
+                        texto.replace("Z", "+00:00")
+                    ).date()
+                except ValueError:
+                    pass
+        return datetime.date.today()
+
     def _validar(self, cotizacion: CotizacionDolar) -> None:
         if self._tipos.leer_por_id(cotizacion.tipo_id) is None:
             raise EntidadNoEncontradaError(
@@ -324,6 +448,10 @@ class ServicioCotizacion:
             )
         if cotizacion.valor_venta < cotizacion.valor_compra:
             raise ReglaDeNegocioError("El valor de venta no puede ser menor al de compra.")
+
+
+# Alias para mantener total compatibilidad con código que importe ServicioCotizacion
+ServicioCotizacion = ServicioCotizacionDolar
 
 
 class ServicioPrecio(ServicioBase[Precio]):
@@ -336,7 +464,7 @@ class ServicioPrecio(ServicioBase[Precio]):
         repositorio: IRepositorio[Precio],
         libros: IRepositorio[Libro],
         monedas: IRepositorio[Moneda],
-        cotizaciones: ServicioCotizacion,
+        cotizaciones: ServicioCotizacionDolar,
     ) -> None:
         super().__init__(repositorio)
         self._libros = libros
@@ -488,20 +616,21 @@ class Servicios:
     libros: ServicioLibro
     precios: ServicioPrecio
     stock: ServicioStock
-    cotizaciones: ServicioCotizacion
+    cotizaciones: ServicioCotizacionDolar
 
 
-def crear_servicios(directorio: Path = DIRECTORIO_DATOS) -> Servicios:
-    """Arma los servicios con repositorios CSV que comparten la misma carpeta."""
-    generos = RepositorioGenero(directorio)
-    editoriales = RepositorioEditorial(directorio)
-    monedas = RepositorioMoneda(directorio)
-    tipos = RepositorioTipoCotizacion(directorio)
-    libros = RepositorioLibro(directorio)
-    precios = RepositorioPrecio(directorio)
-    stock = RepositorioStock(directorio)
-    cotizaciones = RepositorioCotizacionDolar(directorio)
-    servicio_cotizaciones = ServicioCotizacion(cotizaciones, tipos)
+def crear_servicios(conexion: Optional[Any] = None) -> Servicios:
+    """Arma los servicios con repositorios SQLAlchemy conectados a la base de datos."""
+    db = conexion if isinstance(conexion, ConexionDB) else obtener_conexion()
+    generos = RepositorioGenero(db)
+    editoriales = RepositorioEditorial(db)
+    monedas = RepositorioMoneda(db)
+    tipos = RepositorioTipoCotizacion(db)
+    libros = RepositorioLibro(db)
+    precios = RepositorioPrecio(db)
+    stock = RepositorioStock(db)
+    cotizaciones = RepositorioCotizacionDolar(db)
+    servicio_cotizaciones = ServicioCotizacionDolar(cotizaciones, tipos)
     return Servicios(
         generos=ServicioGenero(generos, libros),
         editoriales=ServicioEditorial(editoriales, libros),
