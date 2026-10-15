@@ -1,6 +1,8 @@
 """Módulo de interfaz de usuario de consola (CLI) para Book Manager."""
 
+import csv
 import datetime
+from pathlib import Path
 from typing import Optional
 from book_manager.entities.entities import (
     CotizacionDolar,
@@ -340,6 +342,8 @@ class ConsolaUI:
             print("3. Modificar")
             print("4. Eliminar")
             print("5. Consultar precio (ARS / USD)")
+            print("6. Listar precios bimonetarios")
+            print("7. Exportar precios a CSV (todas las monedas)")
             print("0. Volver")
 
             opcion = input("Opción: ").strip()
@@ -377,6 +381,10 @@ class ConsolaUI:
                     tipo_id = int(input("ID Tipo de cotización: ").strip())
                     val = self._s.precios.precio_en(libro_id, cod, tipo_id)
                     print(f"Precio del libro {libro_id} en {cod}: ${val:.2f}")
+                elif opcion == "6":
+                    self._listar_precios_bimonetarios()
+                elif opcion == "7":
+                    self._exportar_precios_csv()
                 elif opcion == "0":
                     break
             except Exception as e:
@@ -436,6 +444,7 @@ class ConsolaUI:
             print("3. Registrar cotización")
             print("4. Modificar cotización")
             print("5. Eliminar cotización")
+            print("6. Obtener cotizaciones desde API")
             print("0. Volver")
 
             opcion = input("Opción: ").strip()
@@ -478,7 +487,131 @@ class ConsolaUI:
                         print("Cotización eliminada exitosamente.")
                     else:
                         print("No se encontró la cotización.")
+                elif opcion == "6":
+                    cotizaciones = self._s.cotizaciones.obtener_cotizaciones()
+                    if not cotizaciones:
+                        print("La API no devolvió cotizaciones para registrar.")
+                    else:
+                        print("\n=== COTIZACIONES OBTENIDAS DESDE API ===")
+                        for cot in cotizaciones:
+                            tipo = self._s.tipos_cotizacion.obtener(cot.tipo_id)
+                            print(
+                                f"{tipo.nombre} | Fecha: {cot.fecha} | "
+                                f"Compra: ${cot.valor_compra:.2f} | "
+                                f"Venta: ${cot.valor_venta:.2f}"
+                            )
+                        print(f"Total: {len(cotizaciones)} cotizaciones guardadas/actualizadas.")
                 elif opcion == "0":
                     break
             except Exception as e:
                 print(f"Error: {e}")
+
+
+    # ---------------------------------------------------------------------------
+    # Ejercicio 08: listado bimonetario y exportación de precios a CSV
+    # ---------------------------------------------------------------------------
+    def _elegir_tipo_cotizacion_opcional(self) -> Optional[int]:
+        """Permite elegir un tipo de dólar para convertir precios entre ARS y USD."""
+        tipos = self._s.tipos_cotizacion.listar()
+        if tipos:
+            print("Tipos de cotización disponibles:")
+            for tipo in tipos:
+                print(f"  {tipo.id}. {tipo.nombre}")
+        texto = input(
+            "ID del tipo de cotización (Enter para usar solo precios cargados): "
+        ).strip()
+        if not texto:
+            return None
+        tipo_id = int(texto)
+        self._s.tipos_cotizacion.obtener(tipo_id)  # Valida que exista.
+        return tipo_id
+
+    def _precio_en_moneda(self, libro_id: int, codigo: str, tipo_id: Optional[int]):
+        """Devuelve (monto, origen); no inventa conversiones para otras monedas."""
+        moneda = self._s.monedas.buscar_por_codigo(codigo)
+        if moneda is None:
+            return None, "Moneda no registrada"
+
+        # Primero usar un precio registrado explícitamente en la moneda.
+        for precio in self._s.precios.precios_de_libro(libro_id):
+            if precio.moneda_id == moneda.id:
+                return precio.monto, "Registrado"
+
+        # El servicio del Sprint 2 solo convierte automáticamente ARS <-> USD.
+        if codigo in ("ARS", "USD") and tipo_id is not None:
+            try:
+                monto = self._s.precios.precio_en(libro_id, codigo, tipo_id)
+                return monto, "Convertido"
+            except (EntidadNoEncontradaError, ReglaDeNegocioError, ZeroDivisionError):
+                pass
+
+        return None, "No disponible"
+
+    def _listar_precios_bimonetarios(self) -> None:
+        """Lista cada libro en ARS y en una segunda moneda elegida por el usuario."""
+        monedas = self._s.monedas.listar()
+        print("Monedas disponibles:")
+        for moneda in monedas:
+            print(f"  {moneda.codigo} - {moneda.nombre}")
+
+        codigo = input("Moneda a comparar con ARS: ").strip().upper()
+        if codigo == "ARS":
+            print("Elegí una moneda distinta de ARS para comparar.")
+            return
+        if self._s.monedas.buscar_por_codigo(codigo) is None:
+            print(f"La moneda {codigo} no está registrada.")
+            return
+        if self._s.monedas.buscar_por_codigo("ARS") is None:
+            print("La moneda ARS no está registrada.")
+            return
+
+        tipo_id = self._elegir_tipo_cotizacion_opcional()
+        libros = self._s.libros.listar()
+        if not libros:
+            print("No hay libros para mostrar.")
+            return
+
+        print(f"\n=== LISTA DE PRECIOS BIMONETARIA: ARS / {codigo} ===")
+        for libro in libros:
+            pesos, _ = self._precio_en_moneda(libro.id, "ARS", tipo_id)
+            otro, _ = self._precio_en_moneda(libro.id, codigo, tipo_id)
+            texto_ars = f"{pesos:.2f}" if pesos is not None else "N/D"
+            texto_otro = f"{otro:.2f}" if otro is not None else "N/D"
+            print(
+                f"{libro.id} | {libro.titulo} | "
+                f"ARS: {texto_ars} | {codigo}: {texto_otro}"
+            )
+        print("N/D significa que no existe precio registrado ni conversión disponible.")
+
+    def _exportar_precios_csv(self) -> None:
+        """Exporta cada libro para todas las monedas registradas en un archivo CSV."""
+        libros = self._s.libros.listar()
+        monedas = self._s.monedas.listar()
+        if not libros:
+            print("No hay libros para exportar.")
+            return
+        if not monedas:
+            print("No hay monedas registradas para exportar.")
+            return
+
+        tipo_id = self._elegir_tipo_cotizacion_opcional()
+        archivo = Path(__file__).resolve().parents[3] / "precios_todas_monedas.csv"
+        with archivo.open("w", newline="", encoding="utf-8-sig") as salida:
+            escritor = csv.writer(salida)
+            escritor.writerow(["libro_id", "isbn", "titulo", "moneda", "precio", "origen"])
+            for libro in libros:
+                for moneda in monedas:
+                    monto, origen = self._precio_en_moneda(
+                        libro.id, moneda.codigo, tipo_id
+                    )
+                    escritor.writerow([
+                        libro.id,
+                        libro.isbn,
+                        libro.titulo,
+                        moneda.codigo,
+                        f"{monto:.2f}" if monto is not None else "",
+                        origen,
+                    ])
+        print(f"CSV exportado correctamente: {archivo}")
+        print(f"Filas exportadas: {len(libros) * len(monedas)}.")
+        print("Los precios no disponibles se dejan vacíos, sin inventar cotizaciones.")
