@@ -2,6 +2,17 @@
 
 ## Sprint 2
 
+[Ejercicio 07]
+- Implementación del servicio `ServicioCotizacionDolar` (y alias `ServicioCotizacion`) en `book_manager/services/services.py` con soporte de variables de entorno mediante `python-dotenv` (`API_URL` en `.env`).
+- Creación del método `obtener_cotizaciones` en `ServicioCotizacionDolar` para consultar `https://dolarapi.com/v1/dolares` con `requests`, normalizar tipos de cambio y registrar o actualizar las cotizaciones en la base de datos.
+- Actualización de la fábrica `crear_servicios` para conectar todos los servicios y repositorios a la instancia de `ConexionDB`.
+
+[Ejercicio 06]
+- Migración de la capa de persistencia en `book_manager/repositories/repositories.py` para operar íntegramente sobre base de datos relacional mediante SQLAlchemy ORM (`ConexionDB` y transacciones).
+- Implementación de la clase base genérica `RepositorioSQLAlchemy[T, M]` respetando la interfaz `IRepositorio[T]` y convirtiendo entre modelos ORM y entidades de dominio.
+- Adaptación de los repositorios `RepositorioGenero`, `RepositorioEditorial`, `RepositorioMoneda`, `RepositorioTipoCotizacion`, `RepositorioLibro` y `RepositorioPrecio` al motor relacional.
+- Reimplementación de `RepositorioStock` (`IRepositorioStock`) y `RepositorioCotizacionDolar` (`IRepositorioCotizacionDolar`) utilizando consultas `select` de SQLAlchemy 2.x y garantizando las reglas de unicidad e histórico ordenado.
+
 [Ejercicio 04]
 - Modelos ORM declarativos de SQLAlchemy 2.x en `book_manager/models/models.py`: clase `Base(DeclarativeBase)` y una tabla por entidad de dominio (`Genero`, `Editorial`, `Moneda`, `TipoCotizacion`, `Libro`, `Precio`, `Stock`, `CotizacionDolar`).
 - Tipos de columna según el dominio (`String` con longitud, `Numeric` para montos y cotizaciones, fechas, enteros) y restricciones `NOT NULL`/`UNIQUE` reflejando las reglas de unicidad de nombre, código e ISBN ya validadas en los servicios.
