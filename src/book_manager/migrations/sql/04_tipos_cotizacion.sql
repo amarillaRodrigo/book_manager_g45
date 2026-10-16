@@ -1,0 +1,10 @@
+INSERT INTO tipos_cotizacion (id, nombre, descripcion) VALUES (1, 'Oficial', 'Cotización oficial Banco Nación');
+INSERT INTO tipos_cotizacion (id, nombre, descripcion) VALUES (2, 'Blue', 'Cotización del dólar libre');
+INSERT INTO tipos_cotizacion (id, nombre, descripcion) VALUES (3, 'MEP', 'Mercado Electrónico de Pagos');
+INSERT INTO tipos_cotizacion (id, nombre, descripcion) VALUES (4, 'CCL', 'Contado con Liquidación');
+INSERT INTO tipos_cotizacion (id, nombre, descripcion) VALUES (5, 'Tarjeta', 'Dólar turista / tarjeta');
+INSERT INTO tipos_cotizacion (id, nombre, descripcion) VALUES (6, 'Mayorista', 'Dólar bancario mayorista');
+INSERT INTO tipos_cotizacion (id, nombre, descripcion) VALUES (7, 'Minorista', 'Dólar bancario minorista');
+INSERT INTO tipos_cotizacion (id, nombre, descripcion) VALUES (8, 'Cripto', 'Cotización USDT/USDC');
+INSERT INTO tipos_cotizacion (id, nombre, descripcion) VALUES (9, 'Turista', 'Dólar para consumo en el exterior');
+INSERT INTO tipos_cotizacion (id, nombre, descripcion) VALUES (10, 'Solidario', 'Dólar ahorro con recargos');

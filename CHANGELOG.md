@@ -13,6 +13,12 @@
 - Adaptación de los repositorios `RepositorioGenero`, `RepositorioEditorial`, `RepositorioMoneda`, `RepositorioTipoCotizacion`, `RepositorioLibro` y `RepositorioPrecio` al motor relacional.
 - Reimplementación de `RepositorioStock` (`IRepositorioStock`) y `RepositorioCotizacionDolar` (`IRepositorioCotizacionDolar`) utilizando consultas `select` de SQLAlchemy 2.x y garantizando las reglas de unicidad e histórico ordenado.
 
+[Ejercicio 05]
+- Implementación de `migrar_datos` en `book_manager/migrations/migrations.py`: lee los CSV de `migrations/csv` (generos, editoriales, monedas, tipos_cotizacion, libros, precios, stock y cotizaciones) y genera un archivo `.sql` por tabla en `migrations/sql`, numerado según el orden de dependencia de claves foráneas (`01_generos.sql` a `08_cotizaciones.sql`).
+- Generación de sentencias `INSERT` con escapado manual de valores (comillas simples duplicadas, `NULL` para vacíos, numéricos sin comillas), sin recurrir a sintaxis específica de un motor en particular.
+- Ejecución de esas mismas sentencias dentro de la transacción de `ConexionDB`, creando previamente las tablas con `crear_tablas`, de forma que un error en la migración revierte todos los cambios.
+- Migración idempotente: si una tabla ya contiene filas se omite su inserción, evitando duplicados y violaciones de unicidad al volver a ejecutar la migración.
+
 [Ejercicio 04]
 - Modelos ORM declarativos de SQLAlchemy 2.x en `book_manager/models/models.py`: clase `Base(DeclarativeBase)` y una tabla por entidad de dominio (`Genero`, `Editorial`, `Moneda`, `TipoCotizacion`, `Libro`, `Precio`, `Stock`, `CotizacionDolar`).
 - Tipos de columna según el dominio (`String` con longitud, `Numeric` para montos y cotizaciones, fechas, enteros) y restricciones `NOT NULL`/`UNIQUE` reflejando las reglas de unicidad de nombre, código e ISBN ya validadas en los servicios.

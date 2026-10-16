@@ -1,0 +1,10 @@
+INSERT INTO libros (id, isbn, titulo, autor, anio_publicacion, genero_id, editorial_id) VALUES (1, '978-8420479705', 'En agosto nos vemos', 'García Márquez, Gabriel', 2024, 1, 1);
+INSERT INTO libros (id, isbn, titulo, autor, anio_publicacion, genero_id, editorial_id) VALUES (2, '978-8433921864', 'Un lugar soleado para gente sombría', 'Enríquez, Mariana', 2024, 2, 2);
+INSERT INTO libros (id, isbn, titulo, autor, anio_publicacion, genero_id, editorial_id) VALUES (3, '978-8433922656', 'El buen mal', 'Schweblin, Samanta', 2024, 3, 2);
+INSERT INTO libros (id, isbn, titulo, autor, anio_publicacion, genero_id, editorial_id) VALUES (4, '978-8417854614', 'Antes de que se enfríe el café', 'Kawaguchi, Toshikazu', 2021, 3, 3);
+INSERT INTO libros (id, isbn, titulo, autor, anio_publicacion, genero_id, editorial_id) VALUES (5, '978-8416429943', 'Este dolor no es mío', 'Wolynn, Mark', 2017, 4, 4);
+INSERT INTO libros (id, isbn, titulo, autor, anio_publicacion, genero_id, editorial_id) VALUES (6, '978-9877389654', 'Espíritu Animal', 'Tajes, Magalí', 2024, 5, 5);
+INSERT INTO libros (id, isbn, titulo, autor, anio_publicacion, genero_id, editorial_id) VALUES (7, '978-9500768436', 'Fluí con el dinero', 'Starobinsky, Ezequiel', 2023, 6, 5);
+INSERT INTO libros (id, isbn, titulo, autor, anio_publicacion, genero_id, editorial_id) VALUES (8, '978-9504971849', 'El duelo', 'Rolón, Gabriel', 2020, 7, 6);
+INSERT INTO libros (id, isbn, titulo, autor, anio_publicacion, genero_id, editorial_id) VALUES (9, '978-8419654854', 'Alas de ónix', 'Yarros, Rebecca', 2024, 8, 6);
+INSERT INTO libros (id, isbn, titulo, autor, anio_publicacion, genero_id, editorial_id) VALUES (10, '978-9878191232', 'El Eternauta', 'Oesterheld, Héctor Germán', 2022, 9, 6);

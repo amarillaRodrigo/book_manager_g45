@@ -1,0 +1,10 @@
+INSERT INTO precios (id, libro_id, moneda_id, monto) VALUES (1, 1, 1, 36499.0);
+INSERT INTO precios (id, libro_id, moneda_id, monto) VALUES (2, 2, 1, 40900.0);
+INSERT INTO precios (id, libro_id, moneda_id, monto) VALUES (3, 3, 1, 35499.0);
+INSERT INTO precios (id, libro_id, moneda_id, monto) VALUES (4, 4, 1, 41999.0);
+INSERT INTO precios (id, libro_id, moneda_id, monto) VALUES (5, 5, 1, 47500.0);
+INSERT INTO precios (id, libro_id, moneda_id, monto) VALUES (6, 6, 1, 38499.0);
+INSERT INTO precios (id, libro_id, moneda_id, monto) VALUES (7, 7, 1, 41999.0);
+INSERT INTO precios (id, libro_id, moneda_id, monto) VALUES (8, 8, 1, 30900.0);
+INSERT INTO precios (id, libro_id, moneda_id, monto) VALUES (9, 9, 1, 61900.0);
+INSERT INTO precios (id, libro_id, moneda_id, monto) VALUES (10, 10, 1, 47900.0);

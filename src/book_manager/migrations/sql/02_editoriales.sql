@@ -1,0 +1,10 @@
+INSERT INTO editoriales (id, nombre, contacto, direccion) VALUES (1, 'Random House', 'contacto@penguinrandomhouse.com', 'Buenos Aires, Argentina');
+INSERT INTO editoriales (id, nombre, contacto, direccion) VALUES (2, 'Anagrama', 'info@anagrama-ed.es', 'Barcelona, España');
+INSERT INTO editoriales (id, nombre, contacto, direccion) VALUES (3, 'Plaza & Janés', 'contacto@plazayjanes.com', 'Barcelona, España');
+INSERT INTO editoriales (id, nombre, contacto, direccion) VALUES (4, 'Gaia Ediciones', 'info@alfaomega.es', 'Madrid, España');
+INSERT INTO editoriales (id, nombre, contacto, direccion) VALUES (5, 'Sudamericana', 'contacto@sudamericana.com.ar', 'Buenos Aires, Argentina');
+INSERT INTO editoriales (id, nombre, contacto, direccion) VALUES (6, 'Planeta', 'contacto@editorialplaneta.com.ar', 'Buenos Aires, Argentina');
+INSERT INTO editoriales (id, nombre, contacto, direccion) VALUES (7, 'Debolsillo', 'info@debolsillo.com', 'Buenos Aires, Argentina');
+INSERT INTO editoriales (id, nombre, contacto, direccion) VALUES (8, 'Minotauro', 'consultas@editorialminotauro.com', 'Barcelona, España');
+INSERT INTO editoriales (id, nombre, contacto, direccion) VALUES (9, 'VR Editoras', 'contacto@vreditoras.com', 'Buenos Aires, Argentina');
+INSERT INTO editoriales (id, nombre, contacto, direccion) VALUES (10, 'Siglo XXI', 'info@sigloxxieditores.com.ar', 'Buenos Aires, Argentina');

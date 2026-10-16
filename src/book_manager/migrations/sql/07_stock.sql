@@ -1,0 +1,10 @@
+INSERT INTO stock (id, libro_id, cantidad, ubicacion) VALUES (1, 1, 20, 'Depósito');
+INSERT INTO stock (id, libro_id, cantidad, ubicacion) VALUES (2, 2, 15, 'Depósito');
+INSERT INTO stock (id, libro_id, cantidad, ubicacion) VALUES (3, 3, 18, 'Depósito');
+INSERT INTO stock (id, libro_id, cantidad, ubicacion) VALUES (4, 4, 25, 'Depósito');
+INSERT INTO stock (id, libro_id, cantidad, ubicacion) VALUES (5, 5, 12, 'Depósito');
+INSERT INTO stock (id, libro_id, cantidad, ubicacion) VALUES (6, 6, 30, 'Depósito');
+INSERT INTO stock (id, libro_id, cantidad, ubicacion) VALUES (7, 7, 10, 'Depósito');
+INSERT INTO stock (id, libro_id, cantidad, ubicacion) VALUES (8, 8, 40, 'Depósito');
+INSERT INTO stock (id, libro_id, cantidad, ubicacion) VALUES (9, 9, 8, 'Depósito');
+INSERT INTO stock (id, libro_id, cantidad, ubicacion) VALUES (10, 10, 22, 'Depósito');

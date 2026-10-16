@@ -1,0 +1,10 @@
+INSERT INTO generos (id, nombre, descripcion) VALUES (1, 'Novela / Ficción', 'Obras narrativas de ficción');
+INSERT INTO generos (id, nombre, descripcion) VALUES (2, 'Terror / Cuentos', 'Narrativa de suspenso y elementos oscuros');
+INSERT INTO generos (id, nombre, descripcion) VALUES (3, 'Ficción Contemporánea', 'Obras de autores contemporáneos');
+INSERT INTO generos (id, nombre, descripcion) VALUES (4, 'Psicología / Autoayuda', 'Libros de bienestar y crecimiento personal');
+INSERT INTO generos (id, nombre, descripcion) VALUES (5, 'Desarrollo Personal', 'Reflexiones y herramientas de superación');
+INSERT INTO generos (id, nombre, descripcion) VALUES (6, 'Economía / Finanzas', 'Finanzas personales y manejo del dinero');
+INSERT INTO generos (id, nombre, descripcion) VALUES (7, 'Psicología', 'Ensayos y análisis de la mente humana');
+INSERT INTO generos (id, nombre, descripcion) VALUES (8, 'Fantasía / Romantasy', 'Novelas épicas y romance fantástico');
+INSERT INTO generos (id, nombre, descripcion) VALUES (9, 'Historieta / Cómic', 'Novelas gráficas e historietas ilustradas');
+INSERT INTO generos (id, nombre, descripcion) VALUES (10, 'Ensayo / Divulgación', 'Libros informativos y de divulgación');
