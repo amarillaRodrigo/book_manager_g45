@@ -1,4 +1,6 @@
-# Dependencias del proyecto Book Manager - Sprint 2
+# Dependencias del proyecto Book Manager - Sprint 3
 sqlalchemy>=2.0.0
 python-dotenv>=1.0.0
 requests>=2.31.0
+scrapy>=2.11.0
+openpyxl>=3.1.0

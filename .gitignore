@@ -7,3 +7,4 @@ __pycache__/
 .pytest_cache/
 .vscode/
 src/book_manager/data/
+src/book_manager/scraper/data/

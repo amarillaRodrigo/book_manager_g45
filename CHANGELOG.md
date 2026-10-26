@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## Sprint 3
+
+[Ejercicio 01]
+- Inicialización y configuración de la rama de trabajo `Sprint_3`, creada a partir de `Sprint_2`.
+- Creación de la estructura de carpetas del Sprint 3: `scraper/` (proyecto Scrapy con `scrapy.cfg`, `settings.py`, `items.py`, `pipelines.py` y `spiders/cuspide_spider.py`) y `reportes/` (destino de los reportes Excel y de las alertas CSV).
+- Implementación del `CuspideSpider` base: lectura del catálogo propio desde `migrations/csv/libros.csv` y generación de una petición de búsqueda por cada título, acotada a los diez primeros resultados.
+- Configuración del crawler en `scraper/bookmanager_scraper/settings.py` con `ROBOTSTXT_OBEY = False`, user agent propio, `CONCURRENT_REQUESTS`, `DOWNLOAD_DELAY`, auto-throttling y reintentos, todos parametrizables desde el `.env`.
+- Actualización del archivo `.env` con las variables `CUSPIDE_URL` y `SCRAPY_*` (user agent, delay, peticiones simultáneas, timeout, reintentos y nivel de log).
+- Actualización de `requirements.txt` incorporando las librerías `scrapy` y `openpyxl`.
+- Actualización del archivo `README.md` documentando los objetivos, el contexto y la arquitectura del Sprint 3.
+- Refactorización de `main.py`: se elimina la duplicación de la fábrica de servicios y se delega en `crear_servicios` de la capa de servicios.
+
+---
+
 ## Sprint 2
 
 [Ejercicio 07]
