@@ -2,16 +2,21 @@
 
 Permite la migración de datos almacenados en formato CSV hacia sentencias SQL
 y la posterior carga en la base de datos relacional.
+
+En el Sprint 3 se suma la carga directa de los archivos `.sql` ya generados,
+de modo que los datos puedan restaurarse en la base de datos sin volver a
+pasar por los CSV de origen.
 """
 
 import csv
 import datetime
+import re
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
-from sqlalchemy import func, select, text
+from sqlalchemy import Table, func, select, text
 
 from book_manager.database.connection import ConexionDB, obtener_conexion
 from book_manager.models.models import (
@@ -222,8 +227,16 @@ def _resolver_conexion_migracion(conexion: Optional[Union[str, ConexionDB]]) -> 
     return obtener_conexion()
 
 
-def _tabla_tiene_filas(sesion: Any, modelo: Type[Base]) -> bool:
-    """Indica si la tabla asociada a un modelo ya contiene registros."""
+def _tabla_tiene_filas(sesion: Any, modelo: Union[Type[Base], Table]) -> bool:
+    """Indica si la tabla asociada a un modelo ya contiene registros.
+
+    Args:
+        sesion (Any): Sesión de SQLAlchemy abierta.
+        modelo (Union[Type[Base], Table]): Modelo ORM o tabla del metadata.
+
+    Returns:
+        bool: True si la tabla tiene al menos una fila.
+    """
     cantidad = sesion.execute(select(func.count()).select_from(modelo)).scalar_one()
     return bool(cantidad)
 
@@ -297,6 +310,204 @@ def migrar_datos(
                 continue
             for sentencia in sentencias:
                 sesion.execute(text(sentencia))
+
+
+# ---------------------------------------------------------------------------
+# Carga de datos desde los archivos SQL (Sprint 3 - Ejercicio 02)
+# ---------------------------------------------------------------------------
+
+# Expresión regular que reconoce el nombre de la tabla destino de un INSERT.
+_RE_INSERTAR_EN = re.compile(r"INSERT\s+INTO\s+([A-Za-z_][A-Za-z0-9_]*)", re.IGNORECASE)
+
+# Prefijo numérico de los archivos .sql, que define su orden de carga.
+_RE_PREFIJO_NUMERICO = re.compile(r"^(\d+)")
+
+
+def _clave_de_orden(ruta: Path) -> Tuple[int, str]:
+    """Calcula la clave de ordenación de un archivo `.sql`.
+
+    Los archivos se numeran según el orden de dependencia de sus claves
+    foráneas (`01_generos.sql`, `02_editoriales.sql`, ...), por lo que el
+    prefijo numérico determina el orden en que deben ejecutarse.
+
+    Args:
+        ruta (Path): Ruta del archivo `.sql`.
+
+    Returns:
+        Tuple[int, str]: Prefijo numérico (o un valor alto si no tiene) y nombre.
+    """
+    coincidencia = _RE_PREFIJO_NUMERICO.match(ruta.stem)
+    numero = int(coincidencia.group(1)) if coincidencia else 9999
+    return (numero, ruta.stem)
+
+
+def _separar_sentencias(texto: str) -> List[str]:
+    """Divide un script SQL en sus sentencias individuales.
+
+    El separador de statements es el punto y coma, pero se respetan los
+    textos entre comillas simples (incluyendo las comillas dobles internas
+    que escapan una comilla simple) y se descartan los comentarios de línea
+    (`--`) y de bloque (`/* ... */`), de modo que un `;` dentro de un texto o
+    de un comentario no parte la sentencia por la mitad.
+
+    Args:
+        texto (str): Contenido completo del archivo `.sql`.
+
+    Returns:
+        List[str]: Sentencias SQL individualizadas, sin el `;` final.
+    """
+    sentencias: List[str] = []
+    actual: List[str] = []
+    en_cadena = False
+    en_comentario_de_bloque = False
+    indice = 0
+
+    while indice < len(texto):
+        caracter = texto[indice]
+
+        if en_comentario_de_bloque:
+            if caracter == "*" and texto[indice : indice + 2] == "*/":
+                en_comentario_de_bloque = False
+                indice += 2
+                continue
+            indice += 1
+            continue
+
+        if en_cadena:
+            actual.append(caracter)
+            if caracter == "'":
+                if texto[indice : indice + 2] == "''":
+                    actual.append("'")
+                    indice += 2
+                    continue
+                en_cadena = False
+            indice += 1
+            continue
+
+        if caracter == "'":
+            en_cadena = True
+            actual.append(caracter)
+            indice += 1
+            continue
+
+        if texto[indice : indice + 2] == "--":
+            fin_de_linea = texto.find("\n", indice)
+            indice = len(texto) if fin_de_linea == -1 else fin_de_linea
+            continue
+
+        if texto[indice : indice + 2] == "/*":
+            en_comentario_de_bloque = True
+            indice += 2
+            continue
+
+        if caracter == ";":
+            sentencia = "".join(actual).strip()
+            if sentencia:
+                sentencias.append(sentencia)
+            actual = []
+            indice += 1
+            continue
+
+        actual.append(caracter)
+        indice += 1
+
+    sentencia = "".join(actual).strip()
+    if sentencia:
+        sentencias.append(sentencia)
+
+    return sentencias
+
+
+def _tabla_de_sentencia(sentencia: str) -> Optional[str]:
+    """Obtiene el nombre de la tabla destino de una sentencia `INSERT`.
+
+    Args:
+        sentencia (str): Sentencia SQL a inspeccionar.
+
+    Returns:
+        Optional[str]: Nombre de la tabla, o None si la sentencia no es un
+            `INSERT INTO`.
+    """
+    coincidencia = _RE_INSERTAR_EN.search(sentencia)
+    return coincidencia.group(1) if coincidencia else None
+
+
+def cargar_datos_desde_sql(
+    carpeta_sql: str,
+    conexion: Optional[Union[str, ConexionDB]] = None,
+    crear_tablas: bool = True,
+) -> Dict[str, int]:
+    """Función encargada de cargar los datos de los archivos `.sql` en la base.
+
+    Lee los archivos `.sql` de la carpeta indicada y ejecuta sus sentencias
+    contra la base de datos. Los archivos se procesan en orden numérico
+    (`01_generos.sql`, `02_editoriales.sql`, ...) para respetar el orden de
+    dependencia de las claves foráneas.
+
+    Todas las sentencias se ejecutan dentro de una única transacción: si
+    alguna falla, se revierte la carga completa y no queda nada a medias.
+
+    La carga es idempotente: si la tabla destino ya contiene filas, su
+    archivo se omite, de modo que la función puede ejecutarse reiteradamente
+    sin duplicar registros ni violar las restricciones de unicidad.
+
+    Args:
+        carpeta_sql (str): Carpeta donde se encuentran los archivos `.sql`.
+        conexion (Optional[Union[str, ConexionDB]]): Conexión o cadena de
+            conexión a utilizar en lugar de la conexión global por defecto.
+            Pensado principalmente para pruebas con una base temporal.
+        crear_tablas (bool): Si es True, crea las tablas del modelo antes de
+            cargar los datos.
+
+    Returns:
+        Dict[str, int]: Cantidad de filas insertadas por tabla. Las tablas
+            omitidas por estar ya cargadas aparecen con valor 0.
+
+    Raises:
+        FileNotFoundError: Si la carpeta de archivos `.sql` no existe.
+    """
+    directorio_sql = Path(carpeta_sql)
+    if not directorio_sql.is_dir():
+        raise FileNotFoundError(f"No existe la carpeta de archivos SQL: {directorio_sql}")
+
+    archivos = sorted(
+        (ruta for ruta in directorio_sql.glob("*.sql") if ruta.is_file()),
+        key=_clave_de_orden,
+    )
+    if not archivos:
+        raise FileNotFoundError(f"La carpeta {directorio_sql} no contiene archivos .sql")
+
+    db = _resolver_conexion_migracion(conexion)
+    if crear_tablas:
+        db.crear_tablas(Base)
+
+    filas_por_tabla: Dict[str, int] = {}
+
+    with db.transaccion() as sesion:
+        for ruta in archivos:
+            sentencias = _separar_sentencias(ruta.read_text(encoding="utf-8"))
+            if not sentencias:
+                continue
+
+            tabla = _tabla_de_sentencia(sentencias[0])
+            if tabla is None:
+                continue
+
+            if tabla not in Base.metadata.tables:
+                print(f"  [omitido] {ruta.name}: la tabla '{tabla}' no existe en el modelo.")
+                filas_por_tabla.setdefault(tabla, 0)
+                continue
+
+            if _tabla_tiene_filas(sesion, Base.metadata.tables[tabla]):
+                print(f"  [omitido] {ruta.name}: la tabla '{tabla}' ya contiene datos.")
+                filas_por_tabla.setdefault(tabla, 0)
+                continue
+
+            for sentencia in sentencias:
+                sesion.execute(text(sentencia))
+            filas_por_tabla[tabla] = len(sentencias)
+
+    return filas_por_tabla
 
 
 if __name__ == "__main__":

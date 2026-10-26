@@ -2,6 +2,14 @@
 
 ## Sprint 3
 
+[Ejercicio 02]
+- Implementación de `cargar_datos_desde_sql` en `book_manager/migrations/migrations.py`: lee los archivos `.sql` de una carpeta y ejecuta sus sentencias contra la base de datos.
+- Orden de carga por prefijo numérico de los archivos (`01_generos.sql` ... `08_cotizaciones.sql`), respetando la dependencia de las claves foráneas entre tablas.
+- Ejecución de todas las sentencias dentro de una única transacción: si alguna falla se revierte la carga completa y no queda ningún registro a medias.
+- Carga idempotente: si la tabla destino ya contiene filas, su archivo se omite y se informa por pantalla, de modo que la función puede repetirse sin duplicar datos.
+- Incorporación del auxiliar `_separar_sentencias`, que divide los scripts `.sql` en sentencias individuales respetando las cadenas entre comillas simples (con el escapado de comillas dobles) y descartando los comentarios de línea y de bloque.
+- Activación de `PRAGMA foreign_keys=ON` en las conexiones de SQLite (`book_manager/database/connection.py`): sin ella SQLite no aplicaba las reglas `ondelete="CASCADE"` declaradas en los modelos ni se validaba la integridad referencial al cargar los datos desde SQL.
+
 [Ejercicio 01]
 - Inicialización y configuración de la rama de trabajo `Sprint_3`, creada a partir de `Sprint_2`.
 - Creación de la estructura de carpetas del Sprint 3: `scraper/` (proyecto Scrapy con `scrapy.cfg`, `settings.py`, `items.py`, `pipelines.py` y `spiders/cuspide_spider.py`) y `reportes/` (destino de los reportes Excel y de las alertas CSV).

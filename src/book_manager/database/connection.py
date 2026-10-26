@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Iterator, Optional
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -45,7 +45,8 @@ class ConexionDB:
     def _inicializar_motor(self) -> None:
         """Configura el motor (Engine) y la fábrica de sesiones de SQLAlchemy."""
         connect_args = {}
-        if self._url.startswith("sqlite"):
+        es_sqlite = self._url.startswith("sqlite")
+        if es_sqlite:
             # En SQLite permitimos múltiples hilos para compatibilidad en entornos interactivos
             connect_args["check_same_thread"] = False
 
@@ -54,11 +55,33 @@ class ConexionDB:
             echo=self._echo,
             connect_args=connect_args,
         )
+        if es_sqlite:
+            self._habilitar_claves_foraneas(self._engine)
         self._session_factory = sessionmaker(
             autocommit=False,
             autoflush=False,
             bind=self._engine,
         )
+
+    @staticmethod
+    def _habilitar_claves_foraneas(engine: Engine) -> None:
+        """Activa la comprobación de claves foráneas en las conexiones de SQLite.
+
+        SQLite no las aplica por defecto, de modo que sin esta opción las
+        reglas `ondelete="CASCADE"` declaradas en los modelos no se cumplirían
+        y la carga de datos desde SQL no validaría la integridad referencial.
+
+        Args:
+            engine (Engine): Motor al que se le registra el activador.
+        """
+
+        @event.listens_for(engine, "connect")
+        def _activar_pragma(dbapi_connection, connection_record) -> None:
+            cursor = dbapi_connection.cursor()
+            try:
+                cursor.execute("PRAGMA foreign_keys=ON")
+            finally:
+                cursor.close()
 
     @property
     def url(self) -> str:
