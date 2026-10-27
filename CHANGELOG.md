@@ -2,6 +2,13 @@
 
 ## Sprint 3
 
+[Ejercicio 04]
+- Implementación del `ServicioComparacionPrecios` (`book_manager/services/services.py`), que contrasta el precio interno de cada libro con el precio publicado en Cúspide y calcula la diferencia absoluta y porcentual.
+- El umbral de diferencia de precio se le pide al usuario antes de cada ejecución del scraper (`pedir_umbral_diferencia`), tal como pide el enunciado, y es el que define qué diferencias se consideran alerta.
+- Generación del archivo de alertas `reportes/alertas_precios_<fecha>.csv` con los libros que superan el umbral y las columnas Libro, ISBN, Precio interno, Precio web, Diferencia, Diferencia %, Fecha de extracción y Estado.
+- Función `ejecutar_scraping_con_alertas` (`book_manager/scraper/bookmanager_scraper/runner.py`) que encadena el scraping, la comparación y la generación del archivo de alertas, devolviendo un resumen de la corrida.
+- El servicio de comparación se incorpora al contenedor `Servicios` y a la fábrica `crear_servicios`, junto con el repositorio de las extracciones de la web.
+
 [Ejercicio 03]
 - Implementación del `CuspideSpider` (`book_manager/scraper/bookmanager_scraper/spiders/cuspide_spider.py`): consulta el sitio de Cúspide una vez por cada título del catálogo propio y se queda únicamente con los diez primeros resultados de cada búsqueda, tal como pide el enunciado.
 - Lectura de los datos de cada ficha de producto mediante `ItemLoader` (`itemloaders`), con los procesadores de normalización de `bookmanager_scraper/items.py`: precio en pesos y en dólares, URL de la imagen, formas de pago, descripción detallada, ISBN y autor.

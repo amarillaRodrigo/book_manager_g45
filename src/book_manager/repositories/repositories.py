@@ -127,6 +127,43 @@ class IRepositorio(abc.ABC, Generic[T]):
         """
 
 
+class IRepositorioPrecioWeb(IRepositorio[PrecioWeb]):
+    """Interfaz para repositorios de los precios extraídos de la web."""
+
+    @abc.abstractmethod
+    def leer_por_libro_y_fecha(
+        self, libro_id: int, fecha: datetime.date
+    ) -> Optional[PrecioWeb]:
+        """Lee la extracción de un libro en una fecha concreta.
+
+        Args:
+            libro_id (int): ID del libro del catálogo.
+            fecha (datetime.date): Fecha de la extracción.
+
+        Returns:
+            Optional[PrecioWeb]: La extracción, o None si no existe.
+        """
+
+    @abc.abstractmethod
+    def ultimo_por_libro(self, libro_id: int) -> Optional[PrecioWeb]:
+        """Devuelve la extracción más reciente de un libro.
+
+        Args:
+            libro_id (int): ID del libro del catálogo.
+
+        Returns:
+            Optional[PrecioWeb]: La extracción más reciente, o None si no hay.
+        """
+
+    @abc.abstractmethod
+    def ultimas_extracciones(self) -> List[PrecioWeb]:
+        """Devuelve la extracción más reciente de cada libro del catálogo.
+
+        Returns:
+            List[PrecioWeb]: Una extracción por libro, ordenada por libro.
+        """
+
+
 class IRepositorioStock(abc.ABC):
     """Interfaz para repositorios del tipo Stock."""
 
@@ -541,7 +578,7 @@ class RepositorioPrecio(RepositorioSQLAlchemy[Precio, ModeloPrecio]):
         }
 
 
-class RepositorioPrecioWeb(RepositorioSQLAlchemy[PrecioWeb, ModeloPrecioWeb]):
+class RepositorioPrecioWeb(RepositorioSQLAlchemy[PrecioWeb, ModeloPrecioWeb], IRepositorioPrecioWeb):
     """Repositorio de los precios extraídos del sitio de Cúspide.
 
     A diferencia del resto de las tablas, admite más de un registro por libro:

@@ -6,6 +6,7 @@ que dejarían datos huérfanos y resuelven operaciones propias del dominio
 (movimientos de stock, conversión de precios y consulta de cotizaciones a API externa).
 """
 
+import csv
 import datetime
 import os
 from dataclasses import dataclass
@@ -24,6 +25,7 @@ from book_manager.entities.entities import (
     Libro,
     Moneda,
     Precio,
+    PrecioWeb,
     Stock,
     TipoCotizacion,
 )
@@ -31,6 +33,7 @@ from book_manager.repositories.repositories import (
     DIRECTORIO_DATOS,
     IRepositorio,
     IRepositorioCotizacionDolar,
+    IRepositorioPrecioWeb,
     IRepositorioStock,
     RepositorioCotizacionDolar,
     RepositorioEditorial,
@@ -38,6 +41,7 @@ from book_manager.repositories.repositories import (
     RepositorioLibro,
     RepositorioMoneda,
     RepositorioPrecio,
+    RepositorioPrecioWeb,
     RepositorioStock,
     RepositorioTipoCotizacion,
 )
@@ -54,6 +58,12 @@ T = TypeVar("T", bound=EntidadBase)
 CODIGO_PESOS = "ARS"
 CODIGO_DOLARES = "USD"
 DEFAULT_API_URL = "https://dolarapi.com/v1/dolares"
+
+# Carpeta donde se guardan los reportes generados (Excel y alertas CSV).
+DIRECTORIO_REPORTES = Path(__file__).resolve().parent.parent / "reportes"
+
+# Umbral de diferencia de precio, en porcentaje, que se usa por defecto.
+UMBRAL_ALERTA_POR_DEFECTO = 10.0
 
 # Mapeo entre los identificadores de dolarapi.com y los nombres de TipoCotizacion del sistema
 MAPEO_TIPOS_API: Dict[str, str] = {
@@ -617,6 +627,7 @@ class Servicios:
     precios: ServicioPrecio
     stock: ServicioStock
     cotizaciones: ServicioCotizacionDolar
+    comparacion_precios: "ServicioComparacionPrecios"
 
 
 def crear_servicios(conexion: Optional[Any] = None) -> Servicios:
@@ -630,6 +641,7 @@ def crear_servicios(conexion: Optional[Any] = None) -> Servicios:
     precios = RepositorioPrecio(db)
     stock = RepositorioStock(db)
     cotizaciones = RepositorioCotizacionDolar(db)
+    precios_web = RepositorioPrecioWeb(db)
     servicio_cotizaciones = ServicioCotizacionDolar(cotizaciones, tipos)
     return Servicios(
         generos=ServicioGenero(generos, libros),
@@ -640,4 +652,275 @@ def crear_servicios(conexion: Optional[Any] = None) -> Servicios:
         precios=ServicioPrecio(precios, libros, monedas, servicio_cotizaciones),
         stock=ServicioStock(stock, libros),
         cotizaciones=servicio_cotizaciones,
+        comparacion_precios=ServicioComparacionPrecios(precios_web, precios, monedas),
     )
+
+
+# ---------------------------------------------------------------------------
+# Comparación de precios internos contra los precios de la web (Sprint 3)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ComparacionPrecio:
+    """Comparación entre el precio interno de un libro y el publicado en la web."""
+
+    libro: str
+    isbn: str
+    precio_interno: float
+    precio_web: float
+    diferencia: float
+    diferencia_porcentaje: float
+    fecha_extraccion: datetime.date
+    en_alerta: bool
+
+
+class ServicioComparacionPrecios:
+    """Compara los precios internos del catálogo con los extraídos de la web.
+
+    La diferencia se calcula sobre el precio en pesos: el interno es el que
+    tenemos en el sistema y el web el que publica el sitio. Superado el
+    umbral de diferencia, que el usuario ingresa antes de cada ejecución del
+    scraper, el libro queda en alerta.
+    """
+
+    def __init__(
+        self,
+        precios_web: IRepositorioPrecioWeb,
+        precios: IRepositorio[Precio],
+        monedas: IRepositorio[Moneda],
+        directorio_reportes: Path = DIRECTORIO_REPORTES,
+    ) -> None:
+        """Inicializa el servicio de comparación.
+
+        Args:
+            precios_web (IRepositorioPrecioWeb): Repositorio con las
+                extracciones del sitio.
+            precios (IRepositorio[Precio]): Repositorio de los precios internos.
+            monedas (IRepositorio[Moneda]): Repositorio de las monedas.
+            directorio_reportes (Path): Carpeta donde se guardan los reportes.
+        """
+        self._precios_web = precios_web
+        self._precios = precios
+        self._monedas = monedas
+        self._directorio_reportes = Path(directorio_reportes)
+        self._id_pesos = self._buscar_id_pesos()
+
+    def _buscar_id_pesos(self) -> Optional[int]:
+        """Busca el ID de la moneda de pesos.
+
+        Returns:
+            Optional[int]: El ID de la moneda ARS, o None si no existe.
+        """
+        for moneda in self._monedas.leer_todos():
+            if moneda.codigo.strip().upper() == CODIGO_PESOS:
+                return moneda.id
+        return None
+
+    def _precio_interno_de(self, libro_id: int) -> Optional[float]:
+        """Busca el precio interno en pesos de un libro.
+
+        Args:
+            libro_id (int): ID del libro del catálogo.
+
+        Returns:
+            Optional[float]: El precio en pesos, o None si el libro no tiene.
+        """
+        if self._id_pesos is None:
+            return None
+        for precio in self._precios.leer_todos():
+            if precio.libro_id == libro_id and precio.moneda_id == self._id_pesos:
+                return float(precio.monto)
+        return None
+
+    @staticmethod
+    def _validar_umbral(umbral_porcentaje: float) -> float:
+        """Comprueba que el umbral de diferencia sea utilizable.
+
+        Args:
+            umbral_porcentaje (float): Umbral expresado en porcentaje.
+
+        Returns:
+            float: El umbral validado.
+
+        Raises:
+            ReglaDeNegocioError: Si el umbral es negativo.
+        """
+        try:
+            umbral = float(umbral_porcentaje)
+        except (TypeError, ValueError):
+            raise ReglaDeNegocioError("El umbral de diferencia debe ser un número.")
+        if umbral < 0:
+            raise ReglaDeNegocioError("El umbral de diferencia no puede ser negativo.")
+        return umbral
+
+    def _precio_interno_de(self, libro_id: int) -> Optional[float]:
+        """Busca el precio interno en pesos de un libro.
+
+        Args:
+            libro_id (int): ID del libro del catálogo.
+
+        Returns:
+            Optional[float]: El precio en pesos, o None si el libro no tiene.
+        """
+        if self._id_pesos is None:
+            return None
+        for precio in self._precios.leer_todos():
+            if precio.libro_id == libro_id and precio.moneda_id == self._id_pesos:
+                return float(precio.monto)
+        return None
+
+    def _nombre_moneda(self, moneda_id: int) -> str:
+        """Devuelve el código de una moneda.
+
+        Args:
+            moneda_id (int): ID de la moneda.
+
+        Returns:
+            str: El código de la moneda, o cadena vacía.
+        """
+        for moneda in self._monedas.leer_todos():
+            if moneda.id == moneda_id:
+                return moneda.codigo
+        return ""
+
+    def comparar(self, umbral_porcentaje: float = UMBRAL_ALERTA_POR_DEFECTO) -> List[ComparacionPrecio]:
+        """Compara los precios internos con los precios extraídos de la web.
+
+        Args:
+            umbral_porcentaje (float): Diferencia máxima aceptada, en
+                porcentaje, antes de considerar que hay una alerta.
+
+        Returns:
+            List[ComparacionPrecio]: Una comparación por libro con precio web,
+                ordenadas por la magnitud de la diferencia.
+        """
+        umbral = self._validar_umbral(umbral_porcentaje)
+        comparaciones: List[ComparacionPrecio] = []
+
+        for precio_web in self._precios_web.ultimas_extracciones():
+            interno = precio_web.precio_interno
+            if interno is None:
+                interno = self._precio_interno_de(precio_web.libro_id)
+            if not interno:
+                continue
+
+            diferencia = round(float(precio_web.precio_ars) - float(interno), 2)
+            porcentaje = round(diferencia / float(interno) * 100, 2)
+            comparaciones.append(
+                ComparacionPrecio(
+                    libro=precio_web.titulo,
+                    isbn=precio_web.isbn,
+                    precio_interno=float(interno),
+                    precio_web=float(precio_web.precio_ars),
+                    diferencia=diferencia,
+                    diferencia_porcentaje=porcentaje,
+                    fecha_extraccion=precio_web.fecha_extraccion,
+                    en_alerta=abs(porcentaje) > umbral,
+                )
+            )
+
+        comparaciones.sort(key=lambda comparacion: abs(comparacion.diferencia_porcentaje), reverse=True)
+        return comparaciones
+
+    def alertas(self, umbral_porcentaje: float = UMBRAL_ALERTA_POR_DEFECTO) -> List[ComparacionPrecio]:
+        """Devuelve solo las comparaciones que superan el umbral.
+
+        Args:
+            umbral_porcentaje (float): Diferencia máxima aceptada, en porcentaje.
+
+        Returns:
+            List[ComparacionPrecio]: Las comparaciones que están en alerta.
+        """
+        return [c for c in self.comparar(umbral_porcentaje) if c.en_alerta]
+
+    def generar_alertas_csv(
+        self,
+        umbral_porcentaje: float = UMBRAL_ALERTA_POR_DEFECTO,
+        directorio: Optional[Path] = None,
+    ) -> Path:
+        """Genera el archivo CSV con las alertas de diferencia de precio.
+
+        Args:
+            umbral_porcentaje (float): Diferencia máxima aceptada, en porcentaje.
+            directorio (Optional[Path]): Carpeta donde se guarda el archivo. Si
+                no se indica se usa la carpeta de reportes del proyecto.
+
+        Returns:
+            Path: La ruta del archivo CSV generado.
+
+        Raises:
+            ReglaDeNegocioError: Si no hay extracciones para comparar.
+        """
+        alertas = self.alertas(umbral_porcentaje)
+        if not alertas:
+            raise ReglaDeNegocioError(
+                "No hay alertas de diferencia de precio para el umbral indicado."
+            )
+
+        carpeta = Path(directorio) if directorio is not None else self._directorio_reportes
+        carpeta.mkdir(parents=True, exist_ok=True)
+        marca = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        ruta = carpeta / f"alertas_precios_{marca}.csv"
+
+        with ruta.open("w", newline="", encoding="utf-8-sig") as archivo:
+            escritor = csv.writer(archivo)
+            escritor.writerow(
+                [
+                    "Libro",
+                    "ISBN",
+                    "Precio interno",
+                    "Precio web",
+                    "Diferencia",
+                    "Diferencia %",
+                    "Fecha de extracción",
+                    "Estado",
+                ]
+            )
+            for alerta in alertas:
+                escritor.writerow(
+                    [
+                        alerta.libro,
+                        alerta.isbn,
+                        f"{alerta.precio_interno:.2f}",
+                        f"{alerta.precio_web:.2f}",
+                        f"{alerta.diferencia:.2f}",
+                        f"{alerta.diferencia_porcentaje:.2f}",
+                        alerta.fecha_extraccion.isoformat(),
+                        "SOBRE EL UMBRAL",
+                    ]
+                )
+
+        return ruta
+
+
+def pedir_umbral_diferencia(por_defecto: float = UMBRAL_ALERTA_POR_DEFECTO) -> float:
+    """Pide al usuario el umbral de diferencia de precio.
+
+    El umbral se ingresa antes de cada ejecución del scraper, como pide el
+    enunciado, y se usa para decidir qué diferencias se consideran alerta.
+
+    Args:
+        por_defecto (float): Valor que se propone por defecto.
+
+    Returns:
+        float: El umbral ingresado por el usuario.
+    """
+    while True:
+        try:
+            respuesta = input(
+                f"Umbral de diferencia de precio en % (por defecto {por_defecto:g}): "
+            ).strip()
+        except (EOFError, KeyboardInterrupt):
+            return por_defecto
+        if not respuesta:
+            return por_defecto
+        try:
+            valor = float(respuesta.replace(",", "."))
+        except ValueError:
+            print("Ingrese un número válido.")
+            continue
+        if valor < 0:
+            print("El umbral no puede ser negativo.")
+            continue
+        return valor

@@ -8,6 +8,7 @@ de retorno.
 """
 
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -19,6 +20,9 @@ DIRECTORIO_SCRAPER = Path(__file__).resolve().parents[1]
 # Carpeta `src` del proyecto y raíz del repositorio.
 CARPETA_SRC = Path(__file__).resolve().parents[3]
 RAIZ_PROYECTO = Path(__file__).resolve().parents[4]
+
+# Umbral de diferencia de precio que se usa si el usuario no indica otro.
+UMBRAL_ALERTA_POR_DEFECTO = 10.0
 
 
 def ruta_base_datos() -> str:
@@ -88,7 +92,7 @@ def ejecutar_scraping(
 
     salida = (proceso.stdout or "") + (proceso.stderr or "")
     if not silencioso and salida:
-        print(salida)
+        print(texto_para_consola(salida))
 
     resumen: Dict[str, object] = {
         "codigo_retorno": proceso.returncode,
@@ -103,16 +107,96 @@ def ejecutar_scraping(
 
 
 def _contar(salida: str, etiqueta: str) -> int:
-    """Cuenta apariciones de una etiqueta en la salida del crawler.
+    """Extrae el valor de una estadística del resumen de Scrapy.
 
     Args:
         salida (str): Salida del crawler.
-        etiqueta (str): Etiqueta a buscar.
+        etiqueta (str): Etiqueta de la estadística, con su formato original.
 
     Returns:
-        int: Cantidad de apariciones de la etiqueta.
+        int: El valor de la estadística, o 0 si no aparece.
     """
-    return salida.count(etiqueta)
+    coincidencia = re.search(re.escape(etiqueta) + r"\s*(\d+)", salida)
+    return int(coincidencia.group(1)) if coincidencia else 0
+
+
+def texto_para_consola(texto: str) -> str:
+    """Sustituye los caracteres que la consola no puede representar.
+
+    La salida del crawler puede traer caracteres del sitio que la consola de
+    Windows (cp1252) no sabe mostrar, y eso cortaría la ejecución.
+
+    Args:
+        texto (str): Texto a mostrar.
+
+    Returns:
+        str: El texto, con los caracteres no representables reemplazados.
+    """
+    codificacion = getattr(sys.stdout, "encoding", None) or "utf-8"
+    return texto.encode(codificacion, errors="replace").decode(codificacion, errors="replace")
+
+
+def ejecutar_scraping_con_alertas(
+    servicios: Any,
+    umbral_porcentaje: Optional[float] = None,
+    preguntar_umbral: bool = True,
+    titulo: Optional[str] = None,
+    timeout: Optional[int] = None,
+) -> Dict[str, object]:
+    """Ejecuta el scraping, compara los precios y genera el archivo de alertas.
+
+    El umbral de diferencia de precio se pide al usuario **antes** de cada
+    ejecución del scraper, tal como pide el enunciado, y es el que define qué
+    diferencias se consideran alerta.
+
+    Args:
+        servicios (Any): Contenedor `Servicios` del sistema.
+        umbral_porcentaje (Optional[float]): Umbral a utilizar. Si es None y
+            `preguntar_umbral` es True, se le pregunta al usuario.
+        preguntar_umbral (bool): Si es True, pide el umbral al usuario.
+        titulo (Optional[str]): Si se indica, solo se consulta ese título.
+        timeout (Optional[int]): Segundos máximos de espera del subproceso.
+
+    Returns:
+        Dict[str, object]: Resumen de la corrida con el umbral utilizado, la
+            cantidad de comparaciones y de alertas, y la ruta del CSV.
+    """
+    from book_manager.services.services import pedir_umbral_diferencia
+
+    if umbral_porcentaje is None and preguntar_umbral:
+        umbral_porcentaje = pedir_umbral_diferencia()
+    if umbral_porcentaje is None:
+        umbral_porcentaje = UMBRAL_ALERTA_POR_DEFECTO
+
+    print("\n--- Ejecutando el scraping en Cúspide ---")
+    resultado = ejecutar_scraping(titulo=titulo, timeout=timeout)
+
+    comparaciones = servicios.comparacion_precios.comparar(umbral_porcentaje)
+    alertas = [c for c in comparaciones if c.en_alerta]
+
+    resumen: Dict[str, object] = {
+        "umbral_porcentaje": umbral_porcentaje,
+        "codigo_retorno": resultado.get("codigo_retorno"),
+        "items_extraidos": resultado.get("items_extraidos", 0),
+        "comparaciones": len(comparaciones),
+        "alertas": len(alertas),
+        "archivo_alertas": None,
+    }
+
+    if alertas:
+        try:
+            ruta = servicios.comparacion_precios.generar_alertas_csv(umbral_porcentaje)
+            resumen["archivo_alertas"] = str(ruta)
+            print(f"\nArchivo de alertas generado en: {ruta}")
+        except Exception as error:  # pragma: no cover - depende del entorno
+            print(f"\nNo se pudo generar el archivo de alertas: {error}")
+    else:
+        print(
+            f"\nNo hay diferencias de precio superiores al {umbral_porcentaje:g}% "
+            "entre nuestro precio y el de Cúspide."
+        )
+
+    return resumen
 
 
 if __name__ == "__main__":

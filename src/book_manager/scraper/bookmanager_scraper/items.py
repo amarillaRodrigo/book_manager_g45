@@ -34,6 +34,9 @@ class LibroCuspideItem(scrapy.Item):
     titulo_buscado = scrapy.Field()
     # Qué tan exactamente coincide el título del sitio con el del catálogo.
     nivel_coincidencia = scrapy.Field()
+    # Posición del producto en los resultados del buscador (el primero es el
+    # que el sitio recomienda), usada para desempatar de forma estable.
+    posicion_resultado = scrapy.Field()
     # Completados por los pipelines.
     libro_id = scrapy.Field()
     precio_interno = scrapy.Field()

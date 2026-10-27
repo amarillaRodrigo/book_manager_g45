@@ -21,6 +21,7 @@ from book_manager.repositories.repositories import RepositorioPrecioWeb
 from book_manager.scraper.bookmanager_scraper.catalogo import (
     COINCIDENCIA_EXACTA,
     CatalogoInterno,
+    normalizar_para_comparar,
 )
 
 
@@ -155,6 +156,7 @@ class PersistenciaPipeline(PipelineBase):
         self._repositorio = RepositorioPrecioWeb()
         self._isbn_del_catalogo: set = set()
         self._niveles: Dict[int, int] = {}
+        self._posiciones: Dict[int, int] = {}
 
     def open_spider(self, spider: Any = None) -> None:
         """Carga los ISBN del catálogo propio.
@@ -197,8 +199,13 @@ class PersistenciaPipeline(PipelineBase):
         )
 
         nivel = int(item.get("nivel_coincidencia") or COINCIDENCIA_EXACTA)
+        posicion = int(item.get("posicion_resultado") or 0)
         nivel_guardado = self._niveles.get(libro_id)
-        if nivel_guardado is not None and nivel > nivel_guardado:
+        posicion_guardada = self._posiciones.get(libro_id)
+
+        if nivel_guardado is not None and not self._mejora(
+            nivel, posicion, nivel_guardado, posicion_guardada
+        ):
             # Ya se guardó una coincidencia mejor para este libro.
             if spider is not None and hasattr(spider, "logger"):
                 spider.logger.info(
@@ -215,7 +222,37 @@ class PersistenciaPipeline(PipelineBase):
             self._repositorio.actualizar(entidad)
 
         self._niveles[libro_id] = nivel
+        self._posiciones[libro_id] = posicion
         return item
+
+    @staticmethod
+    def _mejora(
+        nivel: int, posicion: int, nivel_guardado: int, posicion_guardada: Optional[int]
+    ) -> bool:
+        """Indica si una extracción nueva mejora la que ya está guardada.
+
+        Es mejor la que coincide de forma exacta con el título del catálogo y,
+        entre las del mismo nivel, la que el sitio muestra antes en los
+        resultados de la búsqueda. Como las peticiones se hacen en paralelo,
+        el orden de llegada al pipeline no es estable, y usar la posición en
+        los resultados hace que el resultado final no cambie entre corridas.
+
+        Args:
+            nivel (int): Nivel de coincidencia de la extracción nueva.
+            posicion (int): Posición en los resultados del buscador.
+            nivel_guardado (int): Nivel de la extracción ya guardada.
+            posicion_guardada (Optional[int]): Posición de la guardada.
+
+        Returns:
+            bool: True si la extracción nueva es mejor.
+        """
+        if nivel < nivel_guardado:
+            return True
+        if nivel > nivel_guardado:
+            return False
+        if posicion_guardada is None:
+            return True
+        return posicion < posicion_guardada
 
     @staticmethod
     def _fecha_del_item(item: Item) -> datetime.date:
