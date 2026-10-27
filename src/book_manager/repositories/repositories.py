@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from book_manager.database.connection import ConexionDB, obtener_conexion
 from book_manager.entities.entities import (
@@ -24,6 +24,7 @@ from book_manager.entities.entities import (
     Libro,
     Moneda,
     Precio,
+    PrecioWeb,
     Stock,
     TipoCotizacion,
 )
@@ -35,6 +36,7 @@ from book_manager.models.models import (
     Libro as ModeloLibro,
     Moneda as ModeloMoneda,
     Precio as ModeloPrecio,
+    PrecioWeb as ModeloPrecioWeb,
     Stock as ModeloStock,
     TipoCotizacion as ModeloTipoCotizacion,
 )
@@ -537,6 +539,120 @@ class RepositorioPrecio(RepositorioSQLAlchemy[Precio, ModeloPrecio]):
             "moneda_id": entidad.moneda_id,
             "monto": float(entidad.monto),
         }
+
+
+class RepositorioPrecioWeb(RepositorioSQLAlchemy[PrecioWeb, ModeloPrecioWeb]):
+    """Repositorio de los precios extraídos del sitio de Cúspide.
+
+    A diferencia del resto de las tablas, admite más de un registro por libro:
+    se conserva el histórico de extracciones y la búsqueda se realiza por
+    combinación de libro y fecha de extracción.
+    """
+
+    def __init__(self, conexion: Optional[Any] = None) -> None:
+        super().__init__(ModeloPrecioWeb, conexion)
+
+    def _a_entidad(self, modelo: ModeloPrecioWeb) -> PrecioWeb:
+        return PrecioWeb(
+            libro_id=int(modelo.libro_id),
+            isbn=modelo.isbn,
+            titulo=modelo.titulo,
+            autor=modelo.autor,
+            precio_ars=float(modelo.precio_ars),
+            precio_usd=float(modelo.precio_usd) if modelo.precio_usd is not None else None,
+            precio_interno=(
+                float(modelo.precio_interno) if modelo.precio_interno is not None else None
+            ),
+            url_imagen=modelo.url_imagen,
+            formas_pago=modelo.formas_pago,
+            descripcion=modelo.descripcion,
+            url_producto=modelo.url_producto,
+            fecha_extraccion=modelo.fecha_extraccion,
+            id=modelo.id,
+        )
+
+    def _a_datos_modelo(self, entidad: PrecioWeb) -> Dict[str, Any]:
+        return {
+            "libro_id": entidad.libro_id,
+            "isbn": entidad.isbn,
+            "titulo": entidad.titulo,
+            "autor": entidad.autor,
+            "precio_ars": float(entidad.precio_ars),
+            "precio_usd": (
+                float(entidad.precio_usd) if entidad.precio_usd is not None else None
+            ),
+            "precio_interno": (
+                float(entidad.precio_interno)
+                if entidad.precio_interno is not None
+                else None
+            ),
+            "url_imagen": entidad.url_imagen,
+            "formas_pago": entidad.formas_pago,
+            "descripcion": entidad.descripcion,
+            "url_producto": entidad.url_producto,
+            "fecha_extraccion": entidad.fecha_extraccion,
+        }
+
+    def leer_por_libro_y_fecha(
+        self, libro_id: int, fecha: datetime.date
+    ) -> Optional[PrecioWeb]:
+        """Lee la extracción de un libro en una fecha concreta.
+
+        Args:
+            libro_id (int): ID del libro del catálogo.
+            fecha (datetime.date): Fecha de la extracción.
+
+        Returns:
+            Optional[PrecioWeb]: La extracción, o None si no existe.
+        """
+        with self._db.transaccion() as sesion:
+            registro = sesion.scalars(
+                select(ModeloPrecioWeb).where(
+                    ModeloPrecioWeb.libro_id == libro_id,
+                    ModeloPrecioWeb.fecha_extraccion == fecha,
+                )
+            ).first()
+            return self._a_entidad(registro) if registro is not None else None
+
+    def ultimo_por_libro(self, libro_id: int) -> Optional[PrecioWeb]:
+        """Devuelve la extracción más reciente de un libro.
+
+        Args:
+            libro_id (int): ID del libro del catálogo.
+
+        Returns:
+            Optional[PrecioWeb]: La extracción más reciente, o None si no hay.
+        """
+        with self._db.transaccion() as sesion:
+            registro = sesion.scalars(
+                select(ModeloPrecioWeb)
+                .where(ModeloPrecioWeb.libro_id == libro_id)
+                .order_by(ModeloPrecioWeb.fecha_extraccion.desc())
+            ).first()
+            return self._a_entidad(registro) if registro is not None else None
+
+    def ultimas_extracciones(self) -> List[PrecioWeb]:
+        """Devuelve la extracción más reciente de cada libro del catálogo.
+
+        Returns:
+            List[PrecioWeb]: Una extracción por libro, ordenada por libro.
+        """
+        with self._db.transaccion() as sesion:
+            registros = sesion.scalars(
+                select(ModeloPrecioWeb).order_by(
+                    ModeloPrecioWeb.libro_id,
+                    ModeloPrecioWeb.fecha_extraccion.desc(),
+                )
+            ).all()
+            ultimo_por_libro: Dict[int, ModeloPrecioWeb] = {}
+            for registro in registros:
+                ultimo_por_libro.setdefault(int(registro.libro_id), registro)
+            return [
+                self._a_entidad(registro)
+                for registro in sorted(
+                    ultimo_por_libro.values(), key=lambda modelo: int(modelo.libro_id)
+                )
+            ]
 
 
 # ---------------------------------------------------------------------------

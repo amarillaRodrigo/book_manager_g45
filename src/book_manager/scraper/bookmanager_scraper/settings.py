@@ -5,16 +5,24 @@ proyecto para no dejar valores mágicos en el código.
 """
 
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 # Raíz del repositorio (book_manager/) y carpeta que contiene los CSV del
-# catálogo propio used para acotar las búsquedas.
+# catálogo propio usado para acotar las búsquedas.
 RAIZ_PROYECTO = Path(__file__).resolve().parents[4]
 ARCHIVO_ENV = RAIZ_PROYECTO / ".env"
 if ARCHIVO_ENV.exists():
     load_dotenv(dotenv_path=ARCHIVO_ENV)
+
+# Carpeta `src` del proyecto: se agrega al path para que los pipelines puedan
+# importar los módulos de `book_manager` (entidades, modelos y repositorios)
+# sin importar cómo se haya lanzado el crawler.
+CARPETA_SRC = RAIZ_PROYECTO / "src"
+if str(CARPETA_SRC) not in sys.path:
+    sys.path.insert(0, str(CARPETA_SRC))
 
 # --- Identificación del proyecto ------------------------------------------------
 BOT_NAME = "bookmanager_scraper"
@@ -56,9 +64,13 @@ DEFAULT_REQUEST_HEADERS = {
 ITEM_ERRORS_DISPLAY = ["stdout", "pprint"]
 
 # --- Pipelines ------------------------------------------------------------------
-# El registro completo de pipelines se activa en el Ejercicio 03, junto con la
-# implementación concreta de cada etapa.
-ITEM_PIPELINES = {}
+# Cada etapa se ocupa de una única responsabilidad: completar el precio
+# interno, validar que el item sirva y persistir la extracción.
+ITEM_PIPELINES = {
+    "bookmanager_scraper.pipelines.PrecioInternoPipeline": 100,
+    "bookmanager_scraper.pipelines.ValidacionPipeline": 200,
+    "bookmanager_scraper.pipelines.PersistenciaPipeline": 300,
+}
 
 # --- Salida de respaldo ---------------------------------------------------------
 # JSON con los datos extraídos: permite reejecutar la comparación de precios

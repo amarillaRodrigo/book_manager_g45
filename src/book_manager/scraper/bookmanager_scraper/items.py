@@ -1,11 +1,16 @@
-"""Items del scraper de Book Manager.
+"""Items y procesadores del scraper de Book Manager.
 
 Define el contrato de datos que viaja entre el spider y los pipelines: cada
 item representa un libro del catálogo propio con la información pública
 obtenida del sitio de Cúspide (precio, imagen, formas de pago y descripción)
-más los campos que completan los pipelines (precio interno y diferencia).
+más los campos que completa el pipeline de comparación de precios.
+
+Los procesadores son las funciones que se le pasan a los `ItemLoader` para
+normalizar cada valor extraído antes de armar el item.
 """
 
+import re
+import unicodedata
 from typing import Any, Dict, List, Optional
 
 import scrapy
@@ -24,28 +29,14 @@ class LibroCuspideItem(scrapy.Item):
     descripcion = scrapy.Field()
     url_producto = scrapy.Field()
     fecha_extraccion = scrapy.Field()
-
-
-class ComparacionPrecioItem(scrapy.Item):
-    """Resultado de comparar el precio interno del catálogo con el precio web."""
-
-    libro = scrapy.Field()
-    isbn = scrapy.Field()
+    # Título del catálogo que originó la búsqueda (sirve para identificar el
+    # libro cuando el ISBN de la edición publicada no coincide con el nuestro).
+    titulo_buscado = scrapy.Field()
+    # Qué tan exactamente coincide el título del sitio con el del catálogo.
+    nivel_coincidencia = scrapy.Field()
+    # Completados por los pipelines.
+    libro_id = scrapy.Field()
     precio_interno = scrapy.Field()
-    precio_web = scrapy.Field()
-    diferencia = scrapy.Field()
-    diferencia_porcentaje = scrapy.Field()
-    fecha_extraccion = scrapy.Field()
-    en_alerta = scrapy.Field()
-
-
-class ResumenScrapeItem(scrapy.Item):
-    """Resumen de una corrida completa del scraper."""
-
-    fecha_extraccion = scrapy.Field()
-    titulos_consultados = scrapy.Field()
-    libros_encontrados = scrapy.Field()
-    alertas = scrapy.Field()
 
 
 def item_a_dict(item: scrapy.Item) -> Dict[str, Any]:
@@ -58,6 +49,68 @@ def item_a_dict(item: scrapy.Item) -> Dict[str, Any]:
         Dict[str, Any]: Diccionario con los campos definidos en el item.
     """
     return {campo: item.get(campo) for campo in item.fields}
+
+
+# ---------------------------------------------------------------------------
+# Procesadores
+# ---------------------------------------------------------------------------
+
+
+def limpiar_texto(valor: Any) -> Optional[str]:
+    """Normaliza un texto del HTML: sin entidades, espacios repetidos ni cortes.
+
+    Args:
+        valor (Any): Valor crudo extraído de la respuesta.
+
+    Returns:
+        Optional[str]: Texto limpio, o None si no queda contenido.
+    """
+    if valor is None:
+        return None
+    texto = str(valor).replace("\xa0", " ").replace("\u200b", "")
+    texto = texto.replace("&nbsp;", " ").replace("&amp;", "&").replace("&quot;", '"')
+    texto = re.sub(r"\s+", " ", texto).strip()
+    return texto or None
+
+
+def normalizar_isbn(valor: Any) -> Optional[str]:
+    """Normaliza un ISBN para poder compararlo entre el sitio y el catálogo.
+
+    El sitio publica el ISBN sin guiones (`9789504982814`) mientras que el
+    catálogo propio lo guarda con guiones (`978-9504982814`), de modo que la
+    comparación se hace sobre los dígitos.
+
+    Args:
+        valor (Any): Valor crudo extraído de la respuesta.
+
+    Returns:
+        Optional[str]: Solo los dígitos del ISBN, o None si no hay.
+    """
+    if valor is None:
+        return None
+    digitos = re.sub(r"\D", "", str(valor))
+    return digitos or None
+
+
+def normalizar_titulo(valor: Any) -> Optional[str]:
+    """Normaliza un título para comparar textos sin acentos ni signos.
+
+    Args:
+        valor (Any): Valor crudo extraído de la respuesta.
+
+    Returns:
+        Optional[str]: Título normalizado en minúsculas, o None si no hay.
+    """
+    if valor is None:
+        return None
+    texto = str(valor).lower()
+    texto = "".join(
+        caracter
+        for caracter in unicodedata.normalize("NFD", texto)
+        if unicodedata.category(caracter) != "Mn"
+    )
+    texto = re.sub(r"[^a-z0-9]+", " ", texto).strip()
+    return texto or None
 
 
 def precio_a_float(valor: Any) -> Optional[float]:
@@ -84,7 +137,7 @@ def precio_a_float(valor: Any) -> Optional[float]:
     texto = "".join(c for c in texto if c.isdigit() or c in ".,")
     if not texto:
         return None
-    if "," in texto and "." in texto:
+    if "." in texto and "," in texto:
         # Miles con punto y decimal con coma: 1.234,56 -> 1234.56
         texto = texto.replace(".", "").replace(",", ".")
     elif "," in texto:
@@ -99,28 +152,49 @@ def precio_a_float(valor: Any) -> Optional[float]:
         return None
 
 
-def formas_pago_a_lista(valor: Any) -> List[str]:
-    """Normaliza la lista de formas de pago a una lista de textos limpios.
+def unir_textos(valores: Any, separador: str = " ") -> Optional[str]:
+    """Une varios fragmentos de texto en uno solo.
+
+    Los ``ItemLoader`` entregan a los procesadores la lista completa de los
+    valores extraídos, de modo que este procesador normaliza cada fragmento y
+    los une en un único texto.
 
     Args:
-        valor (Any): Valor crudo extraído de la respuesta.
+        valores (Any): Lista de fragmentos de texto.
+        separador (str): Separador con el que se unen los fragmentos.
 
     Returns:
-        List[str]: Formas de pago sin marcas, comillas ni espacios sobrantes.
+        Optional[str]: Texto unido, o None si no hay contenido.
     """
-    if valor is None:
-        return []
-    if isinstance(valor, str):
-        candidatos = [valor]
-    elif isinstance(valor, (list, tuple)):
-        candidatos = [str(v) for v in valor]
-    else:
-        candidatos = [str(valor)]
-
-    formas: List[str] = []
+    if valores is None:
+        return None
+    candidatos = [valores] if isinstance(valores, str) else list(valores)
+    partes: List[str] = []
     for candidato in candidatos:
-        for parte in candidato.split(","):
-            limpio = parte.strip().strip(".").strip()
-            if limpio and limpio not in formas:
-                formas.append(limpio)
-    return formas
+        limpio = limpiar_texto(candidato)
+        if limpio and limpio not in partes:
+            partes.append(limpio)
+    return separador.join(partes) if partes else None
+
+
+def limpiar_formas_pago(valores: Any) -> Optional[str]:
+    """Normaliza la lista de formas de pago a un único texto.
+
+    El sitio las publica como una lista HTML donde cada elemento empieza con
+    un signo `>` que sobra.
+
+    Args:
+        valores (Any): Lista de formas de pago.
+
+    Returns:
+        Optional[str]: Formas de pago separadas por punto y coma, o None.
+    """
+    texto = unir_textos(valores, separador="; ")
+    if texto is None:
+        return None
+    formas: List[str] = []
+    for parte in texto.split(";"):
+        limpio = parte.strip().lstrip(">").strip().rstrip(":").strip()
+        if limpio and limpio not in formas:
+            formas.append(limpio)
+    return "; ".join(formas) if formas else None

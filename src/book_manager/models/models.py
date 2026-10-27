@@ -11,7 +11,7 @@ al eliminar un libro).
 import datetime
 from typing import List, Optional
 
-from sqlalchemy import ForeignKey, Numeric, String, UniqueConstraint
+from sqlalchemy import ForeignKey, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -97,6 +97,9 @@ class Libro(Base):
     stock: Mapped[Optional["Stock"]] = relationship(
         back_populates="libro", cascade="all, delete-orphan", uselist=False
     )
+    precios_web: Mapped[List["PrecioWeb"]] = relationship(
+        back_populates="libro", cascade="all, delete-orphan"
+    )
 
 
 class Precio(Base):
@@ -152,3 +155,37 @@ class CotizacionDolar(Base):
     valor_venta: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False)
 
     tipo_cotizacion: Mapped["TipoCotizacion"] = relationship(back_populates="cotizaciones")
+
+
+class PrecioWeb(Base):
+    """Datos públicos de un libro del catálogo extraídos del sitio de Cúspide.
+
+    Almacena el precio publicado en la web (en pesos y en dólares), la imagen,
+    las formas de pago y la descripción detallada, junto con el precio interno
+    del libro para poder compararlos.
+
+    Existe a lo sumo un registro por combinación de libro y fecha de extracción.
+    """
+
+    __tablename__ = "precios_web"
+    __table_args__ = (
+        UniqueConstraint("libro_id", "fecha_extraccion", name="uq_precio_web_libro_fecha"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    libro_id: Mapped[int] = mapped_column(
+        ForeignKey("libros.id", ondelete="CASCADE"), nullable=False
+    )
+    isbn: Mapped[str] = mapped_column(String(20), nullable=False)
+    titulo: Mapped[str] = mapped_column(String(255), nullable=False)
+    autor: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    precio_ars: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    precio_usd: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    precio_interno: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    url_imagen: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    formas_pago: Mapped[str] = mapped_column(String(1000), nullable=False, default="")
+    descripcion: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    url_producto: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    fecha_extraccion: Mapped[datetime.date] = mapped_column(nullable=False)
+
+    libro: Mapped["Libro"] = relationship(back_populates="precios_web")

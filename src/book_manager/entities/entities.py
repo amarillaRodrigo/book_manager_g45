@@ -735,3 +735,236 @@ class CotizacionDolar(EntidadBase):
             f"CotizacionDolar(id={self.id}, tipo_id={self.tipo_id}, "
             f"fecha={self.fecha}, compra={self.valor_compra}, venta={self.valor_venta})"
         )
+
+
+class PrecioWeb(EntidadBase):
+    """Datos públicos de un libro del catálogo extraídos del sitio de Cúspide.
+
+    Reúne el precio publicado en la web (en pesos y en dólares), la imagen, las
+    formas de pago y la descripción detallada, junto con el precio interno del
+    libro, que se completa en el pipeline de comparación de precios.
+    """
+
+    def __init__(
+        self,
+        libro_id: int = 0,
+        isbn: str = "",
+        titulo: str = "",
+        autor: str = "",
+        precio_ars: float = 0.0,
+        precio_usd: Optional[float] = None,
+        url_imagen: str = "",
+        formas_pago: str = "",
+        descripcion: str = "",
+        url_producto: str = "",
+        fecha_extraccion: Optional[datetime.date] = None,
+        precio_interno: Optional[float] = None,
+        id: Optional[int] = None,
+    ) -> None:
+        super().__init__(id)
+        self.libro_id = libro_id
+        self.isbn = isbn
+        self.titulo = titulo
+        self.autor = autor
+        self.precio_ars = precio_ars
+        self.precio_usd = precio_usd
+        self.url_imagen = url_imagen
+        self.formas_pago = formas_pago
+        self.descripcion = descripcion
+        self.url_producto = url_producto
+        self.fecha_extraccion = fecha_extraccion if fecha_extraccion is not None else datetime.date.today()
+        self.precio_interno = precio_interno
+
+    @property
+    def libro_id(self) -> int:
+        """ID del libro del catálogo al que corresponde el precio extraído."""
+        return self._libro_id
+
+    @libro_id.setter
+    def libro_id(self, value: int) -> None:
+        if value is None or int(value) <= 0:
+            raise ValueError("El ID del libro debe ser mayor a 0.")
+        self._libro_id = int(value)
+
+    @property
+    def isbn(self) -> str:
+        """ISBN del libro tal como lo publica el sitio."""
+        return self._isbn
+
+    @isbn.setter
+    def isbn(self, value: str) -> None:
+        if value is None or not str(value).strip():
+            raise ValueError("El ISBN no puede estar vacío.")
+        self._isbn = str(value).strip()
+
+    @property
+    def titulo(self) -> str:
+        """Título del libro según el sitio."""
+        return self._titulo
+
+    @titulo.setter
+    def titulo(self, value: str) -> None:
+        if value is None or not str(value).strip():
+            raise ValueError("El título no puede estar vacío.")
+        self._titulo = str(value).strip()
+
+    @property
+    def autor(self) -> str:
+        """Autor del libro según el sitio."""
+        return self._autor
+
+    @autor.setter
+    def autor(self, value: str) -> None:
+        self._autor = str(value) if value is not None else ""
+
+    @property
+    def precio_ars(self) -> float:
+        """Precio publicado en pesos argentinos."""
+        return self._precio_ars
+    @precio_ars.setter
+    def precio_ars(self, value: float) -> None:
+        if value is None or float(value) <= 0:
+            raise ValueError("El precio en pesos debe ser mayor a 0.")
+        self._precio_ars = float(value)
+
+    @property
+    def precio_usd(self) -> Optional[float]:
+        """Precio publicado en dólares, si el sitio lo informa."""
+        return self._precio_usd
+
+    @precio_usd.setter
+    def precio_usd(self, value: Optional[float]) -> None:
+        if value is None:
+            self._precio_usd = None
+        elif float(value) < 0:
+            raise ValueError("El precio en dólares no puede ser negativo.")
+        else:
+            self._precio_usd = float(value)
+
+    @property
+    def precio_interno(self) -> Optional[float]:
+        """Precio interno del libro en pesos, completo por el pipeline."""
+        return self._precio_interno
+
+    @precio_interno.setter
+    def precio_interno(self, value: Optional[float]) -> None:
+        if value is None:
+            self._precio_interno = None
+        else:
+            self._precio_interno = float(value)
+
+    @property
+    def formas_pago(self) -> str:
+        """Formas de pago publicadas por el sitio."""
+        return self._formas_pago
+
+    @formas_pago.setter
+    def formas_pago(self, value: str) -> None:
+        self._formas_pago = str(value) if value is not None else ""
+
+    @property
+    def descripcion(self) -> str:
+        """Descripción detallada del libro."""
+        return self._descripcion
+
+    @descripcion.setter
+    def descripcion(self, value: str) -> None:
+        self._descripcion = str(value) if value is not None else ""
+
+    @property
+    def url_imagen(self) -> str:
+        """URL de la imagen de la portada."""
+        return self._url_imagen
+
+    @url_imagen.setter
+    def url_imagen(self, value: str) -> None:
+        self._url_imagen = str(value) if value is not None else ""
+
+    @property
+    def url_producto(self) -> str:
+        """URL de la ficha del producto en el sitio."""
+        return self._url_producto
+
+    @url_producto.setter
+    def url_producto(self, value: str) -> None:
+        self._url_producto = str(value) if value is not None else ""
+
+    @property
+    def fecha_extraccion(self) -> datetime.date:
+        """Fecha en la que se extrajo la información."""
+        return self._fecha_extraccion
+
+    @fecha_extraccion.setter
+    def fecha_extraccion(self, value: datetime.date) -> None:
+        if not isinstance(value, datetime.date):
+            raise ValueError("La fecha de extracción debe ser un objeto date.")
+        self._fecha_extraccion = value
+
+    @property
+    def diferencia(self) -> Optional[float]:
+        """Diferencia absoluta entre el precio web y el precio interno."""
+        if self.precio_interno is None:
+            return None
+        return round(self.precio_ars - self.precio_interno, 2)
+
+    @property
+    def diferencia_porcentaje(self) -> Optional[float]:
+        """Diferencia porcentual entre el precio web y el precio interno."""
+        if not self.precio_interno:
+            return None
+        return round((self.precio_ars - self.precio_interno) / self.precio_interno * 100, 2)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": str(self.id) if self.id is not None else "",
+            "libro_id": str(self.libro_id),
+            "isbn": self.isbn,
+            "titulo": self.titulo,
+            "autor": self.autor,
+            "precio_ars": str(self.precio_ars),
+            "precio_usd": "" if self.precio_usd is None else str(self.precio_usd),
+            "precio_interno": "" if self.precio_interno is None else str(self.precio_interno),
+            "url_imagen": self.url_imagen,
+            "formas_pago": self.formas_pago,
+            "descripcion": self.descripcion,
+            "url_producto": self.url_producto,
+            "fecha_extraccion": self.fecha_extraccion.isoformat(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "PrecioWeb":
+        raw_id = data.get("id")
+        obj_id = int(raw_id) if raw_id and str(raw_id).strip() else None
+
+        fecha_raw = data.get("fecha_extraccion", "")
+        if isinstance(fecha_raw, datetime.date):
+            fecha_obj = fecha_raw
+        elif isinstance(fecha_raw, str) and fecha_raw.strip():
+            fecha_obj = datetime.date.fromisoformat(fecha_raw.strip())
+        else:
+            fecha_obj = datetime.date.today()
+
+        precio_usd_raw = data.get("precio_usd", "")
+        precio_interno_raw = data.get("precio_interno", "")
+
+        return cls(
+            id=obj_id,
+            libro_id=int(data.get("libro_id", 0) or 0),
+            isbn=str(data.get("isbn", "")),
+            titulo=str(data.get("titulo", "")),
+            autor=str(data.get("autor", "")),
+            precio_ars=float(data.get("precio_ars", 0) or 0),
+            precio_usd=float(precio_usd_raw) if precio_usd_raw not in ("", None) else None,
+            precio_interno=float(precio_interno_raw) if precio_interno_raw not in ("", None) else None,
+            url_imagen=str(data.get("url_imagen", "")),
+            formas_pago=str(data.get("formas_pago", "")),
+            descripcion=str(data.get("descripcion", "")),
+            url_producto=str(data.get("url_producto", "")),
+            fecha_extraccion=fecha_obj,
+        )
+
+    def __repr__(self) -> str:
+        return (
+            f"PrecioWeb(id={self.id}, libro_id={self.libro_id}, isbn={self.isbn}, "
+            f"precio_ars={self.precio_ars}, fecha={self.fecha_extraccion})"
+        )

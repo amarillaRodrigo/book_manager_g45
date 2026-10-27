@@ -2,6 +2,15 @@
 
 ## Sprint 3
 
+[Ejercicio 03]
+- Implementación del `CuspideSpider` (`book_manager/scraper/bookmanager_scraper/spiders/cuspide_spider.py`): consulta el sitio de Cúspide una vez por cada título del catálogo propio y se queda únicamente con los diez primeros resultados de cada búsqueda, tal como pide el enunciado.
+- Lectura de los datos de cada ficha de producto mediante `ItemLoader` (`itemloaders`), con los procesadores de normalización de `bookmanager_scraper/items.py`: precio en pesos y en dólares, URL de la imagen, formas de pago, descripción detallada, ISBN y autor.
+- Identificación de nuestros libros dentro de los resultados (`bookmanager_scraper/catalogo.py`): se acepta la coincidencia exacta del título o la que incluye la edición entre paréntesis o el año, y se descartan las obras que solo empiezan igual (por ejemplo, `EL DUELO INFANTIL` o `EL ETERNAUTA PARA ARMAR`).
+- Implementación de los tres pipelines del scraper: `PrecioInternoPipeline` (identifica el libro del catálogo y suma su precio interno), `ValidacionPipeline` (descarta los items sin precio o ajenos al catálogo) y `PersistenciaPipeline` (guarda la extracción en la tabla `precios_web`, sin duplicar el mismo libro en la misma fecha).
+- Incorporación de la entidad `PrecioWeb`, de su modelo ORM `precios_web` y del repositorio `RepositorioPrecioWeb`, con el histórico de extracciones por libro y fecha.
+- Módulo `runner.py` que ejecuta el crawler en un subproceso independiente, necesario porque Scrapy no puede inicializar el reactor dos veces en el mismo proceso.
+- Actualización de `requirements.txt` con la librería `itemloaders`.
+
 [Ejercicio 02]
 - Implementación de `cargar_datos_desde_sql` en `book_manager/migrations/migrations.py`: lee los archivos `.sql` de una carpeta y ejecuta sus sentencias contra la base de datos.
 - Orden de carga por prefijo numérico de los archivos (`01_generos.sql` ... `08_cotizaciones.sql`), respetando la dependencia de las claves foráneas entre tablas.
