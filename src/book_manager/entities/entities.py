@@ -968,3 +968,92 @@ class PrecioWeb(EntidadBase):
             f"PrecioWeb(id={self.id}, libro_id={self.libro_id}, isbn={self.isbn}, "
             f"precio_ars={self.precio_ars}, fecha={self.fecha_extraccion})"
         )
+
+
+class Auditoria(EntidadBase):
+    """Registro de una operación realizada sobre los datos del sistema.
+
+    Cada operación auditada queda documentada con la acción ejecutada, la
+    fecha en que ocurrió y el detalle de lo que se hizo.
+    """
+
+    def __init__(
+        self,
+        accion: str = "",
+        fecha: Optional[datetime.datetime] = None,
+        detalles: str = "",
+        id: Optional[int] = None,
+    ) -> None:
+        super().__init__(id)
+        self.accion = accion
+        self.fecha = fecha if fecha is not None else datetime.datetime.now()
+        self.detalles = detalles
+
+    @property
+    def accion(self) -> str:
+        """Acción auditada (por ejemplo, CREAR o ELIMINAR)."""
+        return self._accion
+
+    @accion.setter
+    def accion(self, value: str) -> None:
+        if value is None or not str(value).strip():
+            raise ValueError("La acción de la auditoría no puede estar vacía.")
+        self._accion = str(value).strip()
+
+    @property
+    def fecha(self) -> datetime.datetime:
+        """Momento en que se realizó la operación auditada."""
+        return self._fecha
+
+    @fecha.setter
+    def fecha(self, value: datetime.datetime) -> None:
+        if not isinstance(value, datetime.datetime):
+            raise ValueError("La fecha de la auditoría debe ser un datetime.")
+        self._fecha = value
+
+    @property
+    def detalles(self) -> str:
+        """Detalle de la operación auditada."""
+        return self._detalles
+
+    @detalles.setter
+    def detalles(self, value: str) -> None:
+        self._detalles = str(value) if value is not None else ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": str(self.id) if self.id is not None else "",
+            "accion": self.accion,
+            "fecha": self.fecha.isoformat(sep=" "),
+            "detalles": self.detalles,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Auditoria":
+        raw_id = data.get("id")
+        obj_id = int(raw_id) if raw_id and str(raw_id).strip() else None
+
+        fecha_raw = data.get("fecha", "")
+        if isinstance(fecha_raw, datetime.datetime):
+            fecha_obj = fecha_raw
+        elif isinstance(fecha_raw, str) and fecha_raw.strip():
+            texto = fecha_raw.strip().replace("T", " ")
+            try:
+                fecha_obj = datetime.datetime.fromisoformat(texto)
+            except ValueError:
+                fecha_obj = datetime.datetime.now()
+        else:
+            fecha_obj = datetime.datetime.now()
+
+        return cls(
+            id=obj_id,
+            accion=str(data.get("accion", "")),
+            fecha=fecha_obj,
+            detalles=str(data.get("detalles", "")),
+        )
+
+    def __repr__(self) -> str:
+        return (
+            f"Auditoria(id={self.id}, accion={self.accion!r}, "
+            f"fecha={self.fecha}, detalles={self.detalles!r})"
+        )

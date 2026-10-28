@@ -21,14 +21,14 @@ from sqlalchemy import Table, func, select, text
 from book_manager.database.connection import ConexionDB, obtener_conexion
 from book_manager.models.models import (
     Base,
-    CotizacionDolar,
-    Editorial,
-    Genero,
-    Libro,
-    Moneda,
-    Precio,
-    Stock,
-    TipoCotizacion,
+    CotizacionDolarModel,
+    EditorialModel,
+    GeneroModel,
+    LibroModel,
+    MonedaModel,
+    PrecioModel,
+    StockModel,
+    TipoCotizacionModel,
 )
 
 _Conversor = Callable[[str], Any]
@@ -78,31 +78,31 @@ class _EspecificacionTabla:
 # que una tabla nunca se migra antes que las tablas que referencia.
 _ESPECIFICACIONES: List[_EspecificacionTabla] = [
     _EspecificacionTabla(
-        modelo=Genero,
+        modelo=GeneroModel,
         archivo_csv="generos.csv",
         prefijo_sql="01_generos",
         columnas={"id": _entero, "nombre": _texto, "descripcion": _texto},
     ),
     _EspecificacionTabla(
-        modelo=Editorial,
+        modelo=EditorialModel,
         archivo_csv="editoriales.csv",
         prefijo_sql="02_editoriales",
         columnas={"id": _entero, "nombre": _texto, "contacto": _texto, "direccion": _texto},
     ),
     _EspecificacionTabla(
-        modelo=Moneda,
+        modelo=MonedaModel,
         archivo_csv="monedas.csv",
         prefijo_sql="03_monedas",
         columnas={"id": _entero, "codigo": _texto, "nombre": _texto, "simbolo": _texto},
     ),
     _EspecificacionTabla(
-        modelo=TipoCotizacion,
+        modelo=TipoCotizacionModel,
         archivo_csv="tipos_cotizacion.csv",
         prefijo_sql="04_tipos_cotizacion",
         columnas={"id": _entero, "nombre": _texto, "descripcion": _texto},
     ),
     _EspecificacionTabla(
-        modelo=Libro,
+        modelo=LibroModel,
         archivo_csv="libros.csv",
         prefijo_sql="05_libros",
         columnas={
@@ -116,19 +116,19 @@ _ESPECIFICACIONES: List[_EspecificacionTabla] = [
         },
     ),
     _EspecificacionTabla(
-        modelo=Precio,
+        modelo=PrecioModel,
         archivo_csv="precios.csv",
         prefijo_sql="06_precios",
         columnas={"id": _entero, "libro_id": _entero, "moneda_id": _entero, "monto": _decimal},
     ),
     _EspecificacionTabla(
-        modelo=Stock,
+        modelo=StockModel,
         archivo_csv="stock.csv",
         prefijo_sql="07_stock",
         columnas={"id": _entero, "libro_id": _entero, "cantidad": _entero, "ubicacion": _texto},
     ),
     _EspecificacionTabla(
-        modelo=CotizacionDolar,
+        modelo=CotizacionDolarModel,
         archivo_csv="cotizaciones.csv",
         prefijo_sql="08_cotizaciones",
         columnas={

@@ -17,6 +17,7 @@ from sqlalchemy import func, select
 
 from book_manager.database.connection import ConexionDB, obtener_conexion
 from book_manager.entities.entities import (
+    Auditoria,
     CotizacionDolar,
     Editorial,
     EntidadBase,
@@ -30,15 +31,16 @@ from book_manager.entities.entities import (
 )
 from book_manager.models.models import (
      Base,
-    CotizacionDolar as ModeloCotizacionDolar,
-    Editorial as ModeloEditorial,
-    Genero as ModeloGenero,
-    Libro as ModeloLibro,
-    Moneda as ModeloMoneda,
-    Precio as ModeloPrecio,
-    PrecioWeb as ModeloPrecioWeb,
-    Stock as ModeloStock,
-    TipoCotizacion as ModeloTipoCotizacion,
+    AuditoriaModel as ModeloAuditoria,
+    CotizacionDolarModel as ModeloCotizacionDolar,
+    EditorialModel as ModeloEditorial,
+    GeneroModel as ModeloGenero,
+    LibroModel as ModeloLibro,
+    MonedaModel as ModeloMoneda,
+    PrecioModel as ModeloPrecio,
+    PrecioWebModel as ModeloPrecioWeb,
+    StockModel as ModeloStock,
+    TipoCotizacionModel as ModeloTipoCotizacion,
 )
 
 T = TypeVar("T", bound=EntidadBase)
@@ -877,3 +879,62 @@ class RepositorioCotizacionDolar(IRepositorioCotizacionDolar):
                 return False
             sesion.delete(registro)
             return True
+
+
+class RepositorioAuditoria(RepositorioSQLAlchemy[Auditoria, ModeloAuditoria]):
+    """Repositorio de los registros de auditoría del sistema."""
+
+    def __init__(self, conexion: Optional[Any] = None) -> None:
+        super().__init__(ModeloAuditoria, conexion)
+
+    def _a_entidad(self, modelo: ModeloAuditoria) -> Auditoria:
+        return Auditoria(
+            accion=modelo.accion,
+            fecha=modelo.fecha,
+            detalles=modelo.detalles,
+            id=modelo.id,
+        )
+
+    def _a_datos_modelo(self, entidad: Auditoria) -> Dict[str, Any]:
+        return {
+            "accion": entidad.accion,
+            "fecha": entidad.fecha,
+            "detalles": entidad.detalles,
+        }
+
+    def listar_recientes(self, limite: int = 50) -> List[Auditoria]:
+        """Devuelve los registros de auditoría más recientes.
+
+        Args:
+            limite (int): Cantidad máxima de registros a devolver.
+
+        Returns:
+            List[Auditoria]: Los registros, del más nuevo al más antiguo.
+        """
+        with self._db.transaccion() as sesion:
+            stmt = select(ModeloAuditoria).order_by(ModeloAuditoria.id.desc())
+            if limite > 0:
+                stmt = stmt.limit(limite)
+            registros = sesion.scalars(stmt).all()
+            return [self._a_entidad(registro) for registro in registros]
+
+    def buscar_por_accion(self, accion: str, limite: int = 50) -> List[Auditoria]:
+        """Devuelve los registros de auditoría de una acción concreta.
+
+        Args:
+            accion (str): Acción buscada (sin distinguir mayúsculas).
+            limite (int): Cantidad máxima de registros a devolver.
+
+        Returns:
+            List[Auditoria]: Los registros encontrados.
+        """
+        with self._db.transaccion() as sesion:
+            stmt = (
+                select(ModeloAuditoria)
+                .where(ModeloAuditoria.accion.ilike(f"%{accion}%"))
+                .order_by(ModeloAuditoria.id.desc())
+            )
+            if limite > 0:
+                stmt = stmt.limit(limite)
+            registros = sesion.scalars(stmt).all()
+            return [self._a_entidad(registro) for registro in registros]

@@ -2,6 +2,14 @@
 
 ## Sprint 3
 
+[Ejercicio 06]
+- Creación de la tabla de auditorías `auditorias` (`AuditoriaModel`) con las columnas **acción**, **fecha** y **detalles**, junto con la entidad de dominio `Auditoria` y el repositorio `RepositorioAuditoria`.
+- Implementación del decorador `auditable` en la capa de servicios: envuelve los métodos que modifican los datos y escribe un registro con la acción ejecutada, la fecha y el detalle de la operación.
+- Aplicación del decorador a las diez operaciones de alta, modificación y baja del sistema (`ServicioBase.crear`, `.actualizar` y `.eliminar`, `ServicioLibro.eliminar`, `ServicioCotizacionDolar.registrar`, `.actualizar` y `.eliminar`, y `ServicioStock.crear`, `.actualizar` y `.eliminar`).
+- Incorporación del mixin `ServicioAuditable` y del servicio `ServicioAuditoria`, que se inyecta en los servicios desde `crear_servicios` para que cada uno registre sus operaciones sin que la capa de servicios necesite conocer la base de datos.
+- La auditoría solo registra las operaciones que terminan bien: una operación que falla por una regla de negocio no deja rastro.
+- Renombrado de los modelos ORM con el sufijo `Model` (`GeneroModel`, `EditorialModel`, `MonedaModel`, `TipoCotizacionModel`, `LibroModel`, `PrecioModel`, `StockModel`, `CotizacionDolarModel`, `PrecioWebModel`) para distinguirlos de las entidades de dominio, actualizando los imports de los repositorios y de las migraciones.
+
 [Ejercicio 05]
 - Generación del reporte en Excel `reportes/reporte_precios_<fecha>.xlsx` con `openpyxl`, a partir de la comparación entre los precios internos y los precios publicados en Cúspide.
 - Hoja `Comparación` con una fila por libro y las columnas pedidas (Libro, Precio interno, Precio web, Diferencia y Fecha de extracción),ampliadas con ISBN, Diferencia % y Estado.

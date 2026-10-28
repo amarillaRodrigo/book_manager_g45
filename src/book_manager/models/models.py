@@ -19,7 +19,7 @@ class Base(DeclarativeBase):
     """Clase base declarativa de la que heredan todos los modelos ORM del sistema."""
 
 
-class Genero(Base):
+class GeneroModel(Base):
     """Tabla de géneros literarios. El nombre es único."""
 
     __tablename__ = "generos"
@@ -28,10 +28,10 @@ class Genero(Base):
     nombre: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     descripcion: Mapped[str] = mapped_column(String(255), nullable=False, default="")
 
-    libros: Mapped[List["Libro"]] = relationship(back_populates="genero")
+    libros: Mapped[List["LibroModel"]] = relationship(back_populates="genero")
 
 
-class Editorial(Base):
+class EditorialModel(Base):
     """Tabla de editoriales o distribuidoras. El nombre es único."""
 
     __tablename__ = "editoriales"
@@ -41,10 +41,10 @@ class Editorial(Base):
     contacto: Mapped[str] = mapped_column(String(100), nullable=False, default="")
     direccion: Mapped[str] = mapped_column(String(255), nullable=False, default="")
 
-    libros: Mapped[List["Libro"]] = relationship(back_populates="editorial")
+    libros: Mapped[List["LibroModel"]] = relationship(back_populates="editorial")
 
 
-class Moneda(Base):
+class MonedaModel(Base):
     """Tabla de monedas en las que se expresan los precios. El código es único."""
 
     __tablename__ = "monedas"
@@ -54,10 +54,10 @@ class Moneda(Base):
     nombre: Mapped[str] = mapped_column(String(100), nullable=False)
     simbolo: Mapped[str] = mapped_column(String(5), nullable=False, default="$")
 
-    precios: Mapped[List["Precio"]] = relationship(back_populates="moneda")
+    precios: Mapped[List["PrecioModel"]] = relationship(back_populates="moneda")
 
 
-class TipoCotizacion(Base):
+class TipoCotizacionModel(Base):
     """Tabla de tipos de cotización del dólar (Oficial, Blue, MEP, CCL)."""
 
     __tablename__ = "tipos_cotizacion"
@@ -66,12 +66,12 @@ class TipoCotizacion(Base):
     nombre: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
     descripcion: Mapped[str] = mapped_column(String(255), nullable=False, default="")
 
-    cotizaciones: Mapped[List["CotizacionDolar"]] = relationship(
+    cotizaciones: Mapped[List["CotizacionDolarModel"]] = relationship(
         back_populates="tipo_cotizacion"
     )
 
 
-class Libro(Base):
+class LibroModel(Base):
     """Tabla de libros del catálogo. El ISBN es único.
 
     Relaciona cada libro con su género y su editorial. Al eliminar un libro
@@ -89,20 +89,20 @@ class Libro(Base):
     genero_id: Mapped[int] = mapped_column(ForeignKey("generos.id"), nullable=False)
     editorial_id: Mapped[int] = mapped_column(ForeignKey("editoriales.id"), nullable=False)
 
-    genero: Mapped["Genero"] = relationship(back_populates="libros")
-    editorial: Mapped["Editorial"] = relationship(back_populates="libros")
-    precios: Mapped[List["Precio"]] = relationship(
+    genero: Mapped["GeneroModel"] = relationship(back_populates="libros")
+    editorial: Mapped["EditorialModel"] = relationship(back_populates="libros")
+    precios: Mapped[List["PrecioModel"]] = relationship(
         back_populates="libro", cascade="all, delete-orphan"
     )
-    stock: Mapped[Optional["Stock"]] = relationship(
+    stock: Mapped[Optional["StockModel"]] = relationship(
         back_populates="libro", cascade="all, delete-orphan", uselist=False
     )
-    precios_web: Mapped[List["PrecioWeb"]] = relationship(
+    precios_web: Mapped[List["PrecioWebModel"]] = relationship(
         back_populates="libro", cascade="all, delete-orphan"
     )
 
 
-class Precio(Base):
+class PrecioModel(Base):
     """Tabla de precios de un libro en una moneda determinada.
 
     Existe a lo sumo un precio por combinación de libro y moneda.
@@ -118,11 +118,11 @@ class Precio(Base):
     moneda_id: Mapped[int] = mapped_column(ForeignKey("monedas.id"), nullable=False)
     monto: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
 
-    libro: Mapped["Libro"] = relationship(back_populates="precios")
-    moneda: Mapped["Moneda"] = relationship(back_populates="precios")
+    libro: Mapped["LibroModel"] = relationship(back_populates="precios")
+    moneda: Mapped["MonedaModel"] = relationship(back_populates="precios")
 
 
-class Stock(Base):
+class StockModel(Base):
     """Tabla de stock disponible por libro. Existe a lo sumo un registro por libro."""
 
     __tablename__ = "stock"
@@ -134,10 +134,10 @@ class Stock(Base):
     cantidad: Mapped[int] = mapped_column(nullable=False, default=0)
     ubicacion: Mapped[str] = mapped_column(String(100), nullable=False, default="Depósito")
 
-    libro: Mapped["Libro"] = relationship(back_populates="stock")
+    libro: Mapped["LibroModel"] = relationship(back_populates="stock")
 
 
-class CotizacionDolar(Base):
+class CotizacionDolarModel(Base):
     """Tabla histórica de cotizaciones del dólar por tipo y fecha.
 
     Existe a lo sumo una cotización por combinación de tipo y fecha.
@@ -154,10 +154,10 @@ class CotizacionDolar(Base):
     valor_compra: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False)
     valor_venta: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False)
 
-    tipo_cotizacion: Mapped["TipoCotizacion"] = relationship(back_populates="cotizaciones")
+    tipo_cotizacion: Mapped["TipoCotizacionModel"] = relationship(back_populates="cotizaciones")
 
 
-class PrecioWeb(Base):
+class PrecioWebModel(Base):
     """Datos públicos de un libro del catálogo extraídos del sitio de Cúspide.
 
     Almacena el precio publicado en la web (en pesos y en dólares), la imagen,
@@ -188,4 +188,21 @@ class PrecioWeb(Base):
     url_producto: Mapped[str] = mapped_column(String(500), nullable=False, default="")
     fecha_extraccion: Mapped[datetime.date] = mapped_column(nullable=False)
 
-    libro: Mapped["Libro"] = relationship(back_populates="precios_web")
+    libro: Mapped["LibroModel"] = relationship(back_populates="precios_web")
+
+
+class AuditoriaModel(Base):
+    """Tabla de auditoría del sistema.
+
+    Registra cada operación realizada sobre los datos: la acción ejecutada, la
+    fecha en que ocurrió y el detalle de lo que se hizo.
+    """
+
+    __tablename__ = "auditorias"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    accion: Mapped[str] = mapped_column(String(100), nullable=False)
+    fecha: Mapped[datetime.datetime] = mapped_column(
+        nullable=False, default=datetime.datetime.now
+    )
+    detalles: Mapped[str] = mapped_column(String(500), nullable=False, default="")
