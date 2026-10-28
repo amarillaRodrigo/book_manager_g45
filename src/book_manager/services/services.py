@@ -834,6 +834,124 @@ class ServicioComparacionPrecios:
         """
         return [c for c in self.comparar(umbral_porcentaje) if c.en_alerta]
 
+    def generar_reporte_excel(
+        self,
+        umbral_porcentaje: float = UMBRAL_ALERTA_POR_DEFECTO,
+        directorio: Optional[Path] = None,
+    ) -> Path:
+        """Genera el reporte en Excel con la comparación de precios.
+
+        El libro tiene dos hojas: ``Comparación`` con una fila por libro del
+        catálogo y las columnas pedidas (Libro, Precio interno, Precio web,
+        Diferencia y Fecha de extracción), y ``Alertas`` con los libros que
+        superan el umbral de diferencia.
+
+        Args:
+            umbral_porcentaje (float): Diferencia máxima aceptada, en porcentaje.
+            directorio (Optional[Path]): Carpeta donde se guarda el archivo. Si
+                no se indica se usa la carpeta de reportes del proyecto.
+
+        Returns:
+            Path: La ruta del archivo `.xlsx` generado.
+
+        Raises:
+            ReglaDeNegocioError: Si no hay extracciones para comparar.
+        """
+        from openpyxl import Workbook
+        from openpyxl.styles import Alignment, Font, PatternFill
+        from openpyxl.utils import get_column_letter
+
+        comparaciones = self.comparar(umbral_porcentaje)
+        if not comparaciones:
+            raise ReglaDeNegocioError(
+                "No hay precios web registrados para generar el reporte. "
+                "Ejecute el scraping antes de generar el reporte."
+            )
+
+        carpeta = Path(directorio) if directorio is not None else self._directorio_reportes
+        carpeta.mkdir(parents=True, exist_ok=True)
+        marca = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        ruta = carpeta / f"reporte_precios_{marca}.xlsx"
+
+        libro = Workbook()
+        encabezado_fondo = PatternFill("solid", fgColor="F26531")
+        encabezado_texto = Font(bold=True, color="FFFFFF")
+
+        def escribir_encabezado(hoja: Any, titulos: List[str]) -> None:
+            """Escribe la fila de encabezados de una hoja.
+
+            Args:
+                hoja (Any): Hoja de trabajo.
+                titulos (List[str]): Títulos de las columnas.
+            """
+            for indice, titulo in enumerate(titulos, start=1):
+                celda = hoja.cell(row=1, column=indice, value=titulo)
+                celda.fill = encabezado_fondo
+                celda.font = encabezado_texto
+                celda.alignment = Alignment(horizontal="center", vertical="center")
+            hoja.freeze_panes = "A2"
+
+        # ---------------------------------------------------- Hoja Comparación
+        hoja = libro.active
+        hoja.title = "Comparación"
+        titulos = [
+            "Libro",
+            "Precio interno",
+            "Precio web",
+            "Diferencia",
+            "Fecha de extracción",
+            "ISBN",
+            "Diferencia %",
+            "Estado",
+        ]
+        escribir_encabezado(hoja, titulos)
+
+        for fila, comparacion in enumerate(comparaciones, start=2):
+            hoja.cell(row=fila, column=1, value=comparacion.libro)
+            hoja.cell(row=fila, column=2, value=comparacion.precio_interno).number_format = "#,##0.00"
+            hoja.cell(row=fila, column=3, value=comparacion.precio_web).number_format = "#,##0.00"
+            hoja.cell(row=fila, column=4, value=comparacion.diferencia).number_format = "#,##0.00"
+            hoja.cell(row=fila, column=5, value=comparacion.fecha_extraccion.isoformat())
+            hoja.cell(row=fila, column=6, value=comparacion.isbn)
+            hoja.cell(row=fila, column=7, value=comparacion.diferencia_porcentaje).number_format = "0.00"
+            celda_estado = hoja.cell(
+                row=fila, column=8, value="SOBRE EL UMBRAL" if comparacion.en_alerta else "OK"
+            )
+            if comparacion.en_alerta:
+                celda_estado.font = Font(bold=True, color="B20000")
+
+        # -------------------------------------------------------- Hoja Alertas
+        hoja_alertas = libro.create_sheet("Alertas")
+        escribir_encabezado(hoja_alertas, titulos)
+        fila = 2
+        for comparacion in comparaciones:
+            if not comparacion.en_alerta:
+                continue
+            hoja_alertas.cell(row=fila, column=1, value=comparacion.libro)
+            hoja_alertas.cell(row=fila, column=2, value=comparacion.precio_interno).number_format = "#,##0.00"
+            hoja_alertas.cell(row=fila, column=3, value=comparacion.precio_web).number_format = "#,##0.00"
+            hoja_alertas.cell(row=fila, column=4, value=comparacion.diferencia).number_format = "#,##0.00"
+            hoja_alertas.cell(row=fila, column=5, value=comparacion.fecha_extraccion.isoformat())
+            hoja_alertas.cell(row=fila, column=6, value=comparacion.isbn)
+            hoja_alertas.cell(row=fila, column=7, value=comparacion.diferencia_porcentaje).number_format = "0.00"
+            hoja_alertas.cell(row=fila, column=8, value="SOBRE EL UMBRAL").font = Font(
+                bold=True, color="B20000"
+            )
+            fila += 1
+
+        # Ancho automatico de las columnas segun el contenido.
+        for hoja_actual in (hoja, hoja_alertas):
+            for indice in range(1, len(titulos) + 1):
+                columna = get_column_letter(indice)
+                largo = max(
+                    len(str(hoja_actual.cell(row=f, column=indice).value or ""))
+                    for f in range(1, hoja_actual.max_row + 1)
+                )
+                hoja_actual.column_dimensions[columna].width = min(max(largo + 2, 12), 55)
+
+        libro.save(ruta)
+        return ruta
+
     def generar_alertas_csv(
         self,
         umbral_porcentaje: float = UMBRAL_ALERTA_POR_DEFECTO,

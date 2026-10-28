@@ -2,6 +2,14 @@
 
 ## Sprint 3
 
+[Ejercicio 05]
+- Generación del reporte en Excel `reportes/reporte_precios_<fecha>.xlsx` con `openpyxl`, a partir de la comparación entre los precios internos y los precios publicados en Cúspide.
+- Hoja `Comparación` con una fila por libro y las columnas pedidas (Libro, Precio interno, Precio web, Diferencia y Fecha de extracción),ampliadas con ISBN, Diferencia % y Estado.
+- Hoja `Alertas` con los libros que superan el umbral de diferencia, destacada en rojo.
+- Formato del reporte: encabezado con fondo y negrita, paneles congelados, números con formato `#,##0.00` y ancho de columnas según el contenido.
+
+## Sprint 2
+
 [Ejercicio 04]
 - Implementación del `ServicioComparacionPrecios` (`book_manager/services/services.py`), que contrasta el precio interno de cada libro con el precio publicado en Cúspide y calcula la diferencia absoluta y porcentual.
 - El umbral de diferencia de precio se le pide al usuario antes de cada ejecución del scraper (`pedir_umbral_diferencia`), tal como pide el enunciado, y es el que define qué diferencias se consideran alerta.

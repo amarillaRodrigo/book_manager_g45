@@ -44,9 +44,12 @@ class ConsolaUI:
             print("6. Precios")
             print("7. Stock")
             print("8. Cotizaciones del dólar")
+            print("9. Ejecutar scraping")
+            print("10. Generar reporte")
+            print("11. Ver historial de auditoría")
             print("0. Salir")
 
-            opcion = input("Opción: ").strip()
+            opcion = self._leer("Opción: ").strip()
             if opcion == "1":
                 self._menu_libros()
             elif opcion == "2":
@@ -63,11 +66,35 @@ class ConsolaUI:
                 self._menu_stock()
             elif opcion == "8":
                 self._menu_cotizaciones()
+            elif opcion == "9":
+                self._menu_scraping()
+            elif opcion == "10":
+                self._menu_reporte()
+            elif opcion == "11":
+                self._menu_auditoria()
             elif opcion == "0":
                 print("¡Hasta luego!")
                 break
             else:
                 print("Opción inválida. Intente de nuevo.")
+
+    def _leer(self, prompt: str) -> str:
+        """Lee una opcion del menu tolerando el fin de la entrada.
+
+        En una ejecucion no interactiva (por ejemplo, cuando el notebook se
+        corre con "Run all") no hay entrada disponible: en ese caso se
+        devuelve "0" para salir del menu, en lugar de cortar la ejecucion.
+
+        Args:
+            prompt (str): Texto que se muestra al usuario.
+
+        Returns:
+            str: Lo que ingreso el usuario, o "0" si no hay entrada.
+        """
+        try:
+            return input(prompt).strip()
+        except (EOFError, KeyboardInterrupt):
+            return "0"
 
     # ---------------------------------------------------------------------------
     # Menú Libros
@@ -81,7 +108,7 @@ class ConsolaUI:
             print("4. Eliminar")
             print("0. Volver")
 
-            opcion = input("Opción: ").strip()
+            opcion = self._leer("Opción: ").strip()
             try:
                 if opcion == "1":
                     libros = self._s.libros.listar()
@@ -91,12 +118,12 @@ class ConsolaUI:
                         for l in libros:
                             print(f"{l.id} | {l.isbn} | {l.titulo} | {l.autor}")
                 elif opcion == "2":
-                    isbn = input("ISBN: ").strip()
-                    titulo = input("Título: ").strip()
-                    autor = input("Autor: ").strip()
-                    editorial_id = int(input("ID Editorial: ").strip())
-                    genero_id = int(input("ID Género: ").strip())
-                    pub_str = input("Año de publicación (ej: 2024): ").strip()
+                    isbn = self._leer("ISBN: ").strip()
+                    titulo = self._leer("Título: ").strip()
+                    autor = self._leer("Autor: ").strip()
+                    editorial_id = int(self._leer("ID Editorial: ").strip())
+                    genero_id = int(self._leer("ID Género: ").strip())
+                    pub_str = self._leer("Año de publicación (ej: 2024): ").strip()
                     anio_pub = int(pub_str) if pub_str else 2024
                     nuevo = Libro(
                         isbn=isbn,
@@ -109,14 +136,14 @@ class ConsolaUI:
                     creado = self._s.libros.crear(nuevo)
                     print(f"Libro creado exitosamente con ID {creado.id}.")
                 elif opcion == "3":
-                    id_lib = int(input("ID del libro a modificar: ").strip())
+                    id_lib = int(self._leer("ID del libro a modificar: ").strip())
                     libro = self._s.libros.obtener(id_lib)
-                    isbn = input(f"Nuevo ISBN (actual: {libro.isbn}): ").strip() or libro.isbn
-                    titulo = input(f"Nuevo Título (actual: {libro.titulo}): ").strip() or libro.titulo
-                    autor = input(f"Nuevo Autor (actual: {libro.autor}): ").strip() or libro.autor
-                    ed_str = input(f"Nuevo ID Editorial (actual: {libro.editorial_id}): ").strip()
+                    isbn = self._leer(f"Nuevo ISBN (actual: {libro.isbn}): ").strip() or libro.isbn
+                    titulo = self._leer(f"Nuevo Título (actual: {libro.titulo}): ").strip() or libro.titulo
+                    autor = self._leer(f"Nuevo Autor (actual: {libro.autor}): ").strip() or libro.autor
+                    ed_str = self._leer(f"Nuevo ID Editorial (actual: {libro.editorial_id}): ").strip()
                     editorial_id = int(ed_str) if ed_str else libro.editorial_id
-                    gen_str = input(f"Nuevo ID Género (actual: {libro.genero_id}): ").strip()
+                    gen_str = self._leer(f"Nuevo ID Género (actual: {libro.genero_id}): ").strip()
                     genero_id = int(gen_str) if gen_str else libro.genero_id
 
                     libro.isbn = isbn
@@ -127,7 +154,7 @@ class ConsolaUI:
                     self._s.libros.actualizar(libro)
                     print("Libro modificado exitosamente.")
                 elif opcion == "4":
-                    id_lib = int(input("ID del libro a eliminar: ").strip())
+                    id_lib = int(self._leer("ID del libro a eliminar: ").strip())
                     if self._s.libros.eliminar(id_lib):
                         print("Libro eliminado exitosamente.")
                     else:
@@ -149,7 +176,7 @@ class ConsolaUI:
             print("4. Eliminar")
             print("0. Volver")
 
-            opcion = input("Opción: ").strip()
+            opcion = self._leer("Opción: ").strip()
             try:
                 if opcion == "1":
                     generos = self._s.generos.listar()
@@ -159,22 +186,22 @@ class ConsolaUI:
                         for g in generos:
                             print(f"{g.id} | {g.nombre}")
                 elif opcion == "2":
-                    nom = input("Nombre: ").strip()
-                    desc = input("Descripción (opcional): ").strip()
+                    nom = self._leer("Nombre: ").strip()
+                    desc = self._leer("Descripción (opcional): ").strip()
                     nuevo = Genero(nombre=nom, descripcion=desc)
                     creado = self._s.generos.crear(nuevo)
                     print(f"Género creado exitosamente con ID {creado.id}.")
                 elif opcion == "3":
-                    id_g = int(input("ID a modificar: ").strip())
+                    id_g = int(self._leer("ID a modificar: ").strip())
                     g = self._s.generos.obtener(id_g)
-                    nom = input(f"Nuevo nombre (actual: {g.nombre}): ").strip() or g.nombre
-                    desc = input(f"Nueva descripción (actual: {g.descripcion}): ").strip() or g.descripcion
+                    nom = self._leer(f"Nuevo nombre (actual: {g.nombre}): ").strip() or g.nombre
+                    desc = self._leer(f"Nueva descripción (actual: {g.descripcion}): ").strip() or g.descripcion
                     g.nombre = nom
                     g.descripcion = desc
                     self._s.generos.actualizar(g)
                     print("Género modificado exitosamente.")
                 elif opcion == "4":
-                    id_g = int(input("ID a eliminar: ").strip())
+                    id_g = int(self._leer("ID a eliminar: ").strip())
                     if self._s.generos.eliminar(id_g):
                         print("Género eliminado exitosamente.")
                     else:
@@ -196,7 +223,7 @@ class ConsolaUI:
             print("4. Eliminar")
             print("0. Volver")
 
-            opcion = input("Opción: ").strip()
+            opcion = self._leer("Opción: ").strip()
             try:
                 if opcion == "1":
                     editoriales = self._s.editoriales.listar()
@@ -206,25 +233,25 @@ class ConsolaUI:
                         for e in editoriales:
                             print(f"{e.id} | {e.nombre}")
                 elif opcion == "2":
-                    nom = input("Nombre: ").strip()
-                    cont = input("Contacto (opcional): ").strip()
-                    dire = input("Dirección (opcional): ").strip()
+                    nom = self._leer("Nombre: ").strip()
+                    cont = self._leer("Contacto (opcional): ").strip()
+                    dire = self._leer("Dirección (opcional): ").strip()
                     nueva = Editorial(nombre=nom, contacto=cont, direccion=dire)
                     creada = self._s.editoriales.crear(nueva)
                     print(f"Editorial creada exitosamente con ID {creada.id}.")
                 elif opcion == "3":
-                    id_ed = int(input("ID a modificar: ").strip())
+                    id_ed = int(self._leer("ID a modificar: ").strip())
                     e = self._s.editoriales.obtener(id_ed)
-                    nom = input(f"Nuevo nombre (actual: {e.nombre}): ").strip() or e.nombre
-                    cont = input(f"Nuevo contacto (actual: {e.contacto}): ").strip() or e.contacto
-                    dire = input(f"Nueva dirección (actual: {e.direccion}): ").strip() or e.direccion
+                    nom = self._leer(f"Nuevo nombre (actual: {e.nombre}): ").strip() or e.nombre
+                    cont = self._leer(f"Nuevo contacto (actual: {e.contacto}): ").strip() or e.contacto
+                    dire = self._leer(f"Nueva dirección (actual: {e.direccion}): ").strip() or e.direccion
                     e.nombre = nom
                     e.contacto = cont
                     e.direccion = dire
                     self._s.editoriales.actualizar(e)
                     print("Editorial modificada exitosamente.")
                 elif opcion == "4":
-                    id_ed = int(input("ID a eliminar: ").strip())
+                    id_ed = int(self._leer("ID a eliminar: ").strip())
                     if self._s.editoriales.eliminar(id_ed):
                         print("Editorial eliminada exitosamente.")
                     else:
@@ -246,7 +273,7 @@ class ConsolaUI:
             print("4. Eliminar")
             print("0. Volver")
 
-            opcion = input("Opción: ").strip()
+            opcion = self._leer("Opción: ").strip()
             try:
                 if opcion == "1":
                     monedas = self._s.monedas.listar()
@@ -256,25 +283,25 @@ class ConsolaUI:
                         for m in monedas:
                             print(f"{m.id} | {m.codigo} | {m.nombre}")
                 elif opcion == "2":
-                    cod = input("Código (ej: ARS, USD): ").strip()
-                    nom = input("Nombre: ").strip()
-                    simb = input("Símbolo (ej: $): ").strip() or "$"
+                    cod = self._leer("Código (ej: ARS, USD): ").strip()
+                    nom = self._leer("Nombre: ").strip()
+                    simb = self._leer("Símbolo (ej: $): ").strip() or "$"
                     nueva = Moneda(codigo=cod, nombre=nom, simbolo=simb)
                     creada = self._s.monedas.crear(nueva)
                     print(f"Moneda creada exitosamente con ID {creada.id}.")
                 elif opcion == "3":
-                    id_m = int(input("ID a modificar: ").strip())
+                    id_m = int(self._leer("ID a modificar: ").strip())
                     m = self._s.monedas.obtener(id_m)
-                    cod = input(f"Nuevo código (actual: {m.codigo}): ").strip() or m.codigo
-                    nom = input(f"Nuevo nombre (actual: {m.nombre}): ").strip() or m.nombre
-                    simb = input(f"Nuevo símbolo (actual: {m.simbolo}): ").strip() or m.simbolo
+                    cod = self._leer(f"Nuevo código (actual: {m.codigo}): ").strip() or m.codigo
+                    nom = self._leer(f"Nuevo nombre (actual: {m.nombre}): ").strip() or m.nombre
+                    simb = self._leer(f"Nuevo símbolo (actual: {m.simbolo}): ").strip() or m.simbolo
                     m.codigo = cod
                     m.nombre = nom
                     m.simbolo = simb
                     self._s.monedas.actualizar(m)
                     print("Moneda modificada exitosamente.")
                 elif opcion == "4":
-                    id_m = int(input("ID a eliminar: ").strip())
+                    id_m = int(self._leer("ID a eliminar: ").strip())
                     if self._s.monedas.eliminar(id_m):
                         print("Moneda eliminada exitosamente.")
                     else:
@@ -296,7 +323,7 @@ class ConsolaUI:
             print("4. Eliminar")
             print("0. Volver")
 
-            opcion = input("Opción: ").strip()
+            opcion = self._leer("Opción: ").strip()
             try:
                 if opcion == "1":
                     tipos = self._s.tipos_cotizacion.listar()
@@ -306,22 +333,22 @@ class ConsolaUI:
                         for t in tipos:
                             print(f"{t.id} | {t.nombre}")
                 elif opcion == "2":
-                    nom = input("Nombre: ").strip()
-                    desc = input("Descripción (opcional): ").strip()
+                    nom = self._leer("Nombre: ").strip()
+                    desc = self._leer("Descripción (opcional): ").strip()
                     nuevo = TipoCotizacion(nombre=nom, descripcion=desc)
                     creado = self._s.tipos_cotizacion.crear(nuevo)
                     print(f"Tipo de cotización creado exitosamente con ID {creado.id}.")
                 elif opcion == "3":
-                    id_t = int(input("ID a modificar: ").strip())
+                    id_t = int(self._leer("ID a modificar: ").strip())
                     t = self._s.tipos_cotizacion.obtener(id_t)
-                    nom = input(f"Nuevo nombre (actual: {t.nombre}): ").strip() or t.nombre
-                    desc = input(f"Nueva descripción (actual: {t.descripcion}): ").strip() or t.descripcion
+                    nom = self._leer(f"Nuevo nombre (actual: {t.nombre}): ").strip() or t.nombre
+                    desc = self._leer(f"Nueva descripción (actual: {t.descripcion}): ").strip() or t.descripcion
                     t.nombre = nom
                     t.descripcion = desc
                     self._s.tipos_cotizacion.actualizar(t)
                     print("Tipo de cotización modificado exitosamente.")
                 elif opcion == "4":
-                    id_t = int(input("ID a eliminar: ").strip())
+                    id_t = int(self._leer("ID a eliminar: ").strip())
                     if self._s.tipos_cotizacion.eliminar(id_t):
                         print("Tipo de cotización eliminado exitosamente.")
                     else:
@@ -346,7 +373,7 @@ class ConsolaUI:
             print("7. Exportar precios a CSV (todas las monedas)")
             print("0. Volver")
 
-            opcion = input("Opción: ").strip()
+            opcion = self._leer("Opción: ").strip()
             try:
                 if opcion == "1":
                     precios = self._s.precios.listar()
@@ -356,29 +383,29 @@ class ConsolaUI:
                         for p in precios:
                             print(f"{p.id} | Libro ID: {p.libro_id} | Moneda ID: {p.moneda_id} | ${p.monto:.2f}")
                 elif opcion == "2":
-                    libro_id = int(input("ID Libro: ").strip())
-                    moneda_id = int(input("ID Moneda: ").strip())
-                    monto = float(input("Monto: ").strip())
+                    libro_id = int(self._leer("ID Libro: ").strip())
+                    moneda_id = int(self._leer("ID Moneda: ").strip())
+                    monto = float(self._leer("Monto: ").strip())
                     nuevo = Precio(libro_id=libro_id, moneda_id=moneda_id, monto=monto)
                     creado = self._s.precios.crear(nuevo)
                     print(f"Precio creado exitosamente con ID {creado.id}.")
                 elif opcion == "3":
-                    id_p = int(input("ID a modificar: ").strip())
+                    id_p = int(self._leer("ID a modificar: ").strip())
                     p = self._s.precios.obtener(id_p)
-                    monto = float(input(f"Nuevo monto (actual: ${p.monto:.2f}): ").strip() or p.monto)
+                    monto = float(self._leer(f"Nuevo monto (actual: ${p.monto:.2f}): ").strip() or p.monto)
                     p.monto = monto
                     self._s.precios.actualizar(p)
                     print("Precio modificado exitosamente.")
                 elif opcion == "4":
-                    id_p = int(input("ID a eliminar: ").strip())
+                    id_p = int(self._leer("ID a eliminar: ").strip())
                     if self._s.precios.eliminar(id_p):
                         print("Precio eliminado exitosamente.")
                     else:
                         print("No se encontró el precio.")
                 elif opcion == "5":
-                    libro_id = int(input("ID Libro: ").strip())
-                    cod = input("Moneda destino (ARS / USD): ").strip().upper()
-                    tipo_id = int(input("ID Tipo de cotización: ").strip())
+                    libro_id = int(self._leer("ID Libro: ").strip())
+                    cod = self._leer("Moneda destino (ARS / USD): ").strip().upper()
+                    tipo_id = int(self._leer("ID Tipo de cotización: ").strip())
                     val = self._s.precios.precio_en(libro_id, cod, tipo_id)
                     print(f"Precio del libro {libro_id} en {cod}: ${val:.2f}")
                 elif opcion == "6":
@@ -402,7 +429,7 @@ class ConsolaUI:
             print("4. Ver sin stock")
             print("0. Volver")
 
-            opcion = input("Opción: ").strip()
+            opcion = self._leer("Opción: ").strip()
             try:
                 if opcion == "1":
                     stocks = self._s.stock.listar()
@@ -412,13 +439,13 @@ class ConsolaUI:
                         for st in stocks:
                             print(f"Libro ID: {st.libro_id} | Unidades: {st.cantidad}")
                 elif opcion == "2":
-                    libro_id = int(input("ID Libro: ").strip())
-                    cant = int(input("Cantidad a ingresar: ").strip())
+                    libro_id = int(self._leer("ID Libro: ").strip())
+                    cant = int(self._leer("Cantidad a ingresar: ").strip())
                     st = self._s.stock.ingresar(libro_id, cant)
                     print(f"Stock actualizado. Libro {libro_id} ahora tiene {st.cantidad} unidades.")
                 elif opcion == "3":
-                    libro_id = int(input("ID Libro: ").strip())
-                    cant = int(input("Cantidad a retirar: ").strip())
+                    libro_id = int(self._leer("ID Libro: ").strip())
+                    cant = int(self._leer("Cantidad a retirar: ").strip())
                     st = self._s.stock.retirar(libro_id, cant)
                     print(f"Stock actualizado. Libro {libro_id} ahora tiene {st.cantidad} unidades.")
                 elif opcion == "4":
@@ -447,14 +474,14 @@ class ConsolaUI:
             print("6. Obtener cotizaciones desde API")
             print("0. Volver")
 
-            opcion = input("Opción: ").strip()
+            opcion = self._leer("Opción: ").strip()
             try:
                 if opcion == "1":
-                    tipo_id = int(input("ID Tipo de cotización: ").strip())
+                    tipo_id = int(self._leer("ID Tipo de cotización: ").strip())
                     v = self._s.cotizaciones.vigente(tipo_id)
                     print(f"Vigente al {v.fecha}: Compra = ${v.valor_compra:.2f} | Venta = ${v.valor_venta:.2f}")
                 elif opcion == "2":
-                    tipo_id = int(input("ID Tipo de cotización: ").strip())
+                    tipo_id = int(self._leer("ID Tipo de cotización: ").strip())
                     hist = self._s.cotizaciones.historico(tipo_id)
                     if not hist:
                         print("No hay historial para este tipo.")
@@ -462,26 +489,26 @@ class ConsolaUI:
                         for c in hist:
                             print(f"Fecha: {c.fecha} | Compra: ${c.valor_compra:.2f} | Venta: ${c.valor_venta:.2f}")
                 elif opcion == "3":
-                    tipo_id = int(input("ID Tipo de cotización: ").strip())
-                    fecha_str = input("Fecha (YYYY-MM-DD) [dejar vacío para HOY]: ").strip()
+                    tipo_id = int(self._leer("ID Tipo de cotización: ").strip())
+                    fecha_str = self._leer("Fecha (YYYY-MM-DD) [dejar vacío para HOY]: ").strip()
                     fecha = datetime.date.fromisoformat(fecha_str) if fecha_str else datetime.date.today()
-                    compra = float(input("Valor Compra: ").strip())
-                    venta = float(input("Valor Venta: ").strip())
+                    compra = float(self._leer("Valor Compra: ").strip())
+                    venta = float(self._leer("Valor Venta: ").strip())
                     cot = CotizacionDolar(tipo_id=tipo_id, fecha=fecha, valor_compra=compra, valor_venta=venta)
                     self._s.cotizaciones.registrar(cot)
                     print("Cotización registrada exitosamente.")
                 elif opcion == "4":
-                    tipo_id = int(input("ID Tipo de cotización: ").strip())
-                    fecha_str = input("Fecha (YYYY-MM-DD): ").strip()
+                    tipo_id = int(self._leer("ID Tipo de cotización: ").strip())
+                    fecha_str = self._leer("Fecha (YYYY-MM-DD): ").strip()
                     fecha = datetime.date.fromisoformat(fecha_str)
-                    compra = float(input("Nuevo Valor Compra: ").strip())
-                    venta = float(input("Nuevo Valor Venta: ").strip())
+                    compra = float(self._leer("Nuevo Valor Compra: ").strip())
+                    venta = float(self._leer("Nuevo Valor Venta: ").strip())
                     cot = CotizacionDolar(tipo_id=tipo_id, fecha=fecha, valor_compra=compra, valor_venta=venta)
                     self._s.cotizaciones.actualizar(cot)
                     print("Cotización modificada exitosamente.")
                 elif opcion == "5":
-                    tipo_id = int(input("ID Tipo de cotización: ").strip())
-                    fecha_str = input("Fecha (YYYY-MM-DD): ").strip()
+                    tipo_id = int(self._leer("ID Tipo de cotización: ").strip())
+                    fecha_str = self._leer("Fecha (YYYY-MM-DD): ").strip()
                     fecha = datetime.date.fromisoformat(fecha_str)
                     if self._s.cotizaciones.eliminar(tipo_id, fecha):
                         print("Cotización eliminada exitosamente.")
@@ -517,7 +544,7 @@ class ConsolaUI:
             print("Tipos de cotización disponibles:")
             for tipo in tipos:
                 print(f"  {tipo.id}. {tipo.nombre}")
-        texto = input(
+        texto = self._leer(
             "ID del tipo de cotización (Enter para usar solo precios cargados): "
         ).strip()
         if not texto:
@@ -554,7 +581,7 @@ class ConsolaUI:
         for moneda in monedas:
             print(f"  {moneda.codigo} - {moneda.nombre}")
 
-        codigo = input("Moneda a comparar con ARS: ").strip().upper()
+        codigo = self._leer("Moneda a comparar con ARS: ").strip().upper()
         if codigo == "ARS":
             print("Elegí una moneda distinta de ARS para comparar.")
             return
@@ -615,3 +642,64 @@ class ConsolaUI:
         print(f"CSV exportado correctamente: {archivo}")
         print(f"Filas exportadas: {len(libros) * len(monedas)}.")
         print("Los precios no disponibles se dejan vacíos, sin inventar cotizaciones.")
+
+    # ---------------------------------------------------------------------------
+    # Menú Sprint 3: scraping, reportes y auditoría
+    # ---------------------------------------------------------------------------
+    def _menu_scraping(self) -> None:
+        """Ejecuta el scraping de Cúspide y genera el archivo de alertas.
+
+        El umbral de diferencia de precio se pide antes de la corrida, tal
+        como pide el enunciado, y es el que define qué diferencias se
+        consideran alerta.
+        """
+        from book_manager.scraper.bookmanager_scraper.runner import (
+            ejecutar_scraping_con_alertas,
+        )
+
+        print("\n=== SCRAPING DE PRECIOS EN CÚSPIDE ===")
+        try:
+            resumen = ejecutar_scraping_con_alertas(self._s)
+        except Exception as error:
+            print(f"No se pudo ejecutar el scraping: {error}")
+            return
+
+        print(f"\nLibros comparados: {resumen.get('comparaciones', 0)}")
+        print(f"Alertas detectadas: {resumen.get('alertas', 0)}")
+        archivo = resumen.get("archivo_alertas")
+        if archivo:
+            print(f"Archivo de alertas: {archivo}")
+
+    def _menu_reporte(self) -> None:
+        """Genera el reporte en Excel con la comparación de precios."""
+        print("\n=== REPORTE DE COMPARACIÓN DE PRECIOS ===")
+        try:
+            umbral = self._leer(
+                f"Umbral de diferencia de precio en % (por defecto 10): "
+            )
+            valor = float(umbral.replace(",", ".")) if umbral else 10.0
+        except ValueError:
+            print("El umbral debe ser un número. Se usa el valor por defecto.")
+            valor = 10.0
+
+        try:
+            ruta = self._s.comparacion_precios.generar_reporte_excel(valor)
+        except Exception as error:
+            print(f"No se pudo generar el reporte: {error}")
+            return
+
+        print(f"Reporte generado en: {ruta}")
+
+    def _menu_auditoria(self) -> None:
+        """Muestra el historial de auditoría del sistema."""
+        print("\n=== HISTORIAL DE AUDITORÍA ===")
+        registros = self._s.auditoria.historico(50)
+        if not registros:
+            print("Todavía no hay operaciones auditadas.")
+            return
+
+        print(f"{'ID':>5} | {'FECHA':<19} | {'ACCIÓN':<12} | DETALLES")
+        for registro in registros:
+            fecha = registro.fecha.strftime("%Y-%m-%d %H:%M:%S")
+            print(f"{registro.id:>5} | {fecha:<19} | {registro.accion:<12} | {registro.detalles}")
+
