@@ -3,7 +3,7 @@
 import csv
 import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Iterable, Iterator, Optional
 from book_manager.entities.entities import (
     CotizacionDolar,
     Editorial,
@@ -21,12 +21,51 @@ from book_manager.services.services import (
 )
 
 
+# Entradas que se usan en el modo demostracion: recorren un listado y un alta
+# de cada modelo del catalogo y ejercitan las tres opciones del Sprint 3
+# (scraping, reporte e historial de auditoria), tal como pide el enunciado.
+ENTRADAS_DEMOSTRACION = (
+    # Libros: listar y crear
+    "1", "1", "2", "978-9998887776", "Libro de prueba del Sprint 3",
+    "Autor de Prueba", "1", "1", "2026", "0",
+    # Generos: listar y crear
+    "2", "1", "2", "Ciencia Ficcion Alternativa", "Genero de prueba", "0",
+    # Editoriales: listar y crear
+    "3", "1", "2", "Editorial de Prueba", "prueba@editorial.test", "Buenos Aires", "0",
+    # Monedas: listar y crear
+    "4", "1", "2", "BRL", "Real Brasilero", "R$", "0",
+    # Tipos de cotizacion: listar y crear
+    "5", "1", "2", "Tipo de Prueba", "Tipo de cotizacion de prueba", "0",
+    # Precios: listar y crear
+    "6", "1", "2", "1", "1", "35000", "0",
+    # Stock: listar e ingresar unidades
+    "7", "1", "3", "1", "25", "0",
+    # Cotizaciones del dolar: ver la vigente
+    "8", "1", "1", "0",
+    # Opciones del Sprint 3
+    "9", "10",
+    "10", "10",
+    "11",
+    "0",
+)
+
+
 class ConsolaUI:
     """Clase encargada de la interfaz interactiva basada en consola."""
 
-    def __init__(self, servicios: Servicios) -> None:
+    def __init__(self, servicios: Servicios, entradas: Optional[Iterable[str]] = None) -> None:
+        """Prepara la consola.
+
+        Args:
+            servicios (Servicios): Servicios del sistema.
+            entradas (Optional[Iterable[str]]): Secuencia de respuestas a usar
+                en lugar de la entrada del usuario. Si se indica, la consola
+                corre de forma automatica (modo demostración) y no espera
+                ninguna pulsacion.
+        """
         self._s = servicios
         self.servicios = servicios
+        self._entradas: Optional[Iterator[str]] = iter(entradas) if entradas is not None else None
 
     def ejecutar(self) -> None:
         """Alias para mostrar_menu_principal."""
@@ -91,6 +130,10 @@ class ConsolaUI:
         Returns:
             str: Lo que ingreso el usuario, o "0" si no hay entrada.
         """
+        if self._entradas is not None:
+            valor = next(self._entradas, "0")
+            print(prompt + valor)
+            return valor
         try:
             return input(prompt).strip()
         except (EOFError, KeyboardInterrupt):

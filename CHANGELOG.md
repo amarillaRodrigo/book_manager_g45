@@ -2,6 +2,14 @@
 
 ## Sprint 3
 
+[Ejercicio 07]
+- Incorporación al menú principal de las tres opciones del Sprint 3: **9. Ejecutar scraping**, **10. Generar reporte** y **11. Ver historial de auditoría**.
+- La opción *Ejecutar scraping* pide el umbral de diferencia de precio antes de la corrida, lanza el crawler en un subproceso y genera el archivo de alertas con los precios comparados.
+- La opción *Generar reporte* pide el umbral, genera el reporte en Excel con la comparación de precios y muestra la ruta del archivo.
+- La opción *Ver historial de auditoría* lista los últimos 50 registros con su identificador, fecha, acción y detalle.
+- Blindaje de la lectura de las opciones del menú: ante el fin de la entrada (por ejemplo, al ejecutar el notebook con "Run all") la consola sale del menú en lugar de cortar la ejecución.
+- Modo demostración: cuando la entrada no es interactiva (por ejemplo, al ejecutar el notebook con "Run all") la aplicación recorre sola el listado y el alta de cada modelo y las tres opciones del Sprint 3, y termina sin esperar una pulsación.
+
 [Ejercicio 06]
 - Creación de la tabla de auditorías `auditorias` (`AuditoriaModel`) con las columnas **acción**, **fecha** y **detalles**, junto con la entidad de dominio `Auditoria` y el repositorio `RepositorioAuditoria`.
 - Implementación del decorador `auditable` en la capa de servicios: envuelve los métodos que modifican los datos y escribe un registro con la acción ejecutada, la fecha y el detalle de la operación.
